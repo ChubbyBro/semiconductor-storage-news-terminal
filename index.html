@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>券商晨会观点卡片生成器</title>
+  <style>
+    :root {
+      --bg: #eaf1fb;
+      --panel: #f6f9ff;
+      --card: #ffffff;
+      --title: #114579;
+      --title-2: #2b6aa6;
+      --text: #1b2b40;
+      --muted: #66758b;
+      --line: #d7e0ed;
+      --accent: #0f6db2;
+      --success: #007f5f;
+      --danger: #c73e1d;
+      --shadow: 0 14px 34px rgba(14, 47, 82, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 500px at -10% -20%, #dce9fb 10%, transparent 65%),
+        radial-gradient(900px 420px at 110% -10%, #d4e6f9 10%, transparent 60%),
+        var(--bg);
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .top-actions {
+      width: min(1400px, 100%);
+      margin: 0 auto 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .top-actions h1 {
+      margin: 0;
+      font-size: 20px;
+      color: var(--title);
+      letter-spacing: 0.3px;
+    }
+
+    .top-actions p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .top-action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .app {
+      width: min(1400px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(330px, 460px) minmax(600px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .left-panel {
+      padding: 14px;
+      position: sticky;
+      top: 14px;
+      max-height: calc(100vh - 30px);
+      overflow: auto;
+    }
+
+    .group {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .group h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      color: var(--title);
+    }
+
+    .field {
+      margin-bottom: 8px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    input,
+    textarea,
+    button {
+      font: inherit;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid #c7d5e8;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    input:focus,
+    textarea:focus {
+      outline: 2px solid rgba(15, 109, 178, 0.16);
+      border-color: var(--accent);
+    }
+
+    textarea {
+      min-height: 86px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .market-box {
+      min-height: 170px;
+    }
+
+    .item-card {
+      border: 1px solid #d6e0ee;
+      background: #fdfefe;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 8px;
+      position: relative;
+    }
+
+    .item-card .remove-btn {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      border: 0;
+      background: #fff4f1;
+      color: var(--danger);
+      border-radius: 8px;
+      font-size: 12px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .item-card .remove-btn:hover {
+      filter: brightness(0.97);
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(120deg, var(--title), var(--title-2));
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn.secondary {
+      background: #eaf2fd;
+      color: var(--title);
+      border: 1px solid #b8cbe4;
+    }
+
+    .btn.success {
+      background: linear-gradient(120deg, #006f58, #009e7a);
+    }
+
+    .btn.warning {
+      background: linear-gradient(120deg, #b2650b, #cf7d16);
+    }
+
+    .full {
+      width: 100%;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 7px;
+      line-height: 1.4;
+    }
+
+    .preview-wrap {
+      padding: 18px;
+    }
+
+    .report-card {
+      width: min(900px, 100%);
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid #cfdae8;
+      box-shadow: 0 12px 30px rgba(13, 43, 74, 0.14);
+    }
+
+    .report-head {
+      background: linear-gradient(135deg, #0f3f72 0%, #145389 100%);
+      color: #fff;
+      text-align: center;
+      padding: 20px 14px 18px;
+    }
+
+    .report-head h2 {
+      margin: 0;
+      font-size: 44px;
+      letter-spacing: 1px;
+      font-weight: 700;
+    }
+
+    .report-head p {
+      margin: 8px 0 0;
+      opacity: 0.94;
+      font-size: 24px;
+    }
+
+    .report-body {
+      padding: 14px;
+      background: #f8fbff;
+    }
+
+    .section-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid #deebf7;
+      margin-bottom: 10px;
+      position: relative;
+    }
+
+    .section-card::before {
+      content: "";
+      width: 4px;
+      border-radius: 3px;
+      background: #1986c8;
+      position: absolute;
+      left: 0;
+      top: 10px;
+      bottom: 10px;
+    }
+
+    .section-card h3 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      color: #114579;
+      padding-left: 8px;
+    }
+
+    .section-card p {
+      margin: 6px 0;
+      line-height: 1.75;
+      font-size: 20px;
+      color: #21384f;
+      padding-left: 8px;
+    }
+
+    .overview-paragraph {
+      margin: 0 0 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .overview-paragraph:last-child {
+      margin-bottom: 0;
+    }
+
+    .overview-emoji {
+      flex-shrink: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      margin-top: 3px;
+    }
+
+    .overview-text {
+      flex: 1;
+      display: block;
+    }
+
+    .overview-emphasis,
+    .text-emphasis {
+      color: #d77908;
+      font-weight: 700;
+    }
+
+    .core-item {
+      margin: 9px 0 0;
+      padding: 10px 10px 10px 12px;
+      border-left: 3px solid #7fb0dd;
+      background: #f9fcff;
+      border-radius: 7px;
+    }
+
+    .core-item h4 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      color: #134f85;
+      font-weight: 700;
+    }
+
+    .core-content-wrap {
+      margin: 0;
+      padding: 0;
+      line-height: 1.75;
+      font-size: 19px;
+      white-space: normal;
+      color: #21384f;
+    }
+
+    .core-content-line {
+      display: block;
+      margin-bottom: 12px;
+    }
+
+    .core-content-line:last-child {
+      margin-bottom: 0;
+    }
+
+    .core-label {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 8px;
+      margin-right: 6px;
+      font-weight: 700;
+      line-height: 1.35;
+      vertical-align: baseline;
+    }
+
+    .core-label.consensus {
+      background: #eef6ff;
+      border: 1px solid #d6e8ff;
+      color: #205a91;
+    }
+
+    .core-label.logic {
+      background: #f3fbf7;
+      border: 1px solid #d7efe4;
+      color: #1e6f57;
+    }
+
+    .core-content-line.gap {
+      height: 12px;
+      margin: 0;
+    }
+
+    .risk-item {
+      margin: 18px 0;
+      padding: 10px 10px 10px 12px;
+      border-radius: 7px;
+      background: #fff7f4;
+      border-left: 3px solid #eb7f62;
+      font-size: 19px;
+      line-height: 1.75;
+    }
+
+    .risk-paragraph {
+      margin: 0 0 18px;
+    }
+
+    .risk-paragraph:last-child {
+      margin-bottom: 0;
+    }
+
+    .disclaimer {
+      margin-top: 10px;
+      padding: 11px 12px;
+      border-radius: 8px;
+      background: #f1f6fd;
+      color: #587090;
+      border: 1px dashed #bfd2e8;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .preview-placeholder {
+      color: #7a8ca3;
+    }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: #0a6d55;
+      color: #fff;
+      font-size: 13px;
+      border-radius: 8px;
+      padding: 9px 12px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1100px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .left-panel {
+        position: static;
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 10px;
+      }
+
+      .preview-wrap {
+        padding: 10px;
+      }
+
+      .report-head h2 {
+        font-size: 32px;
+      }
+
+      .report-head p {
+        font-size: 20px;
+      }
+
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .top-actions {
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="panel top-actions">
+    <div>
+      <h1>券商晨会观点卡片生成器</h1>
+      <p>左侧输入，右侧实时生成。顶部按钮可直接复制图片或下载图片。</p>
+    </div>
+    <div class="top-action-buttons">
+      <button class="btn success" id="copyImageBtn" type="button">复制图片</button>
+      <button class="btn warning" id="downloadImageBtn" type="button">下载图片</button>
+    </div>
+  </section>
+
+  <div class="app">
+    <aside class="panel left-panel">
+      <div class="group">
+        <h2>基础信息</h2>
+        <div class="field">
+          <label for="reportDate">报告日期（自动识别当天）</label>
+          <input id="reportDate" type="date" readonly />
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>📊 市场综述</h2>
+        <div class="field">
+          <label for="marketOverview">市场综述（单输入框，多段可用空行分隔；支持 `**加粗**`）</label>
+          <textarea id="marketOverview" class="market-box" placeholder="输入几段就展示几段。支持回车换段；使用 **文字** 可在卡片中橙色加粗。"></textarea>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>🔥 热点板块</h2>
+        <div id="sectorList"></div>
+        <button class="btn secondary full" id="addSectorBtn" type="button">+ 新增热点板块</button>
+      </div>
+
+      <div class="group">
+        <h2>风险提示</h2>
+        <div id="riskList"></div>
+        <button class="btn secondary full" id="addRiskBtn" type="button">+ 新增风险段落</button>
+      </div>
+
+      <div class="controls">
+        <button class="btn secondary" id="fillDemoBtn" type="button">填充示例</button>
+        <button class="btn secondary" id="clearBtn" type="button">清空输入</button>
+      </div>
+      <p class="hint">热点板块：每项仅两个输入框（标题 + 内容）；风险提示：每项仅一个输入框。</p>
+    </aside>
+
+    <main class="panel preview-wrap">
+      <article class="report-card" id="reportCard">
+        <header class="report-head">
+          <h2 id="cardTitle">券商晨会精华</h2>
+          <p id="cardDateText">2026年4月6日 星期一</p>
+        </header>
+        <div class="report-body">
+          <section class="section-card">
+            <h3>📊 市场综述</h3>
+            <div id="overviewPreview"></div>
+          </section>
+
+          <section class="section-card">
+            <h3>🔥 热点板块</h3>
+            <div id="corePreview"></div>
+          </section>
+
+          <section class="section-card">
+            <h3>❗ 风险提示</h3>
+            <div id="riskPreview"></div>
+            <div class="disclaimer">以上内容来源均为持牌券商研究所，仅供信息参考，不构成任何投资建议。</div>
+          </section>
+        </div>
+      </article>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">已完成</div>
+
+  <template id="sectorTemplate">
+    <div class="item-card sector-item">
+      <button class="remove-btn" type="button">删除</button>
+      <div class="field">
+        <label>第一个输入框：热点板块名称</label>
+        <input data-key="title" type="text" placeholder="如：石化产业链与煤化工" />
+      </div>
+      <div class="field">
+        <label>第二个输入框：机构共识 + 推荐逻辑（支持 `**加粗**`）</label>
+        <textarea data-key="content" placeholder="机构共识：...\n推荐逻辑：...（支持 **加粗**）"></textarea>
+      </div>
+    </div>
+  </template>
+
+  <template id="riskTemplate">
+    <div class="item-card risk-item-editor">
+      <button class="remove-btn" type="button">删除</button>
+      <div class="field">
+        <label>风险提示（单输入框，支持 `**加粗**`）</label>
+        <textarea data-key="content" placeholder="【券商名称】：风险描述（支持 **加粗**）"></textarea>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    (function () {
+      var WEEK_NAMES = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+      var OVERVIEW_EMOJIS = ["📌", "📈", "🧭", "🔍", "⚙️", "🌍"];
+      var CARD_MAIN_TITLE = "券商晨会精华";
+      var DEFAULT_OVERVIEW = [
+        "今日整理多家券商晨会观点，市场整体呈现结构性机会与主题轮动并存。",
+        "机构普遍建议围绕景气主线与防御主线进行均衡配置。",
+        "后续重点关注外部风险演化与业绩兑现节奏。"
+      ];
+
+      var elements = {
+        reportDate: document.getElementById("reportDate"),
+        marketOverview: document.getElementById("marketOverview"),
+        sectorList: document.getElementById("sectorList"),
+        riskList: document.getElementById("riskList"),
+        addSectorBtn: document.getElementById("addSectorBtn"),
+        addRiskBtn: document.getElementById("addRiskBtn"),
+        fillDemoBtn: document.getElementById("fillDemoBtn"),
+        clearBtn: document.getElementById("clearBtn"),
+        copyImageBtn: document.getElementById("copyImageBtn"),
+        downloadImageBtn: document.getElementById("downloadImageBtn"),
+        cardTitle: document.getElementById("cardTitle"),
+        cardDateText: document.getElementById("cardDateText"),
+        reportCard: document.getElementById("reportCard"),
+        overviewPreview: document.getElementById("overviewPreview"),
+        corePreview: document.getElementById("corePreview"),
+        riskPreview: document.getElementById("riskPreview"),
+        toast: document.getElementById("toast"),
+        sectorTemplate: document.getElementById("sectorTemplate"),
+        riskTemplate: document.getElementById("riskTemplate")
+      };
+
+      function pad2(num) {
+        return String(num).padStart(2, "0");
+      }
+
+      function todayISO() {
+        var d = new Date();
+        return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+      }
+
+      function formatDateCN(isoDate) {
+        var parts = isoDate.split("-");
+        if (parts.length !== 3) return isoDate;
+        return Number(parts[0]) + "年" + Number(parts[1]) + "月" + Number(parts[2]) + "日";
+      }
+
+      function weekdayCN(isoDate) {
+        var d = new Date(isoDate + "T00:00:00");
+        if (Number.isNaN(d.getTime())) return "";
+        return WEEK_NAMES[d.getDay()];
+      }
+
+      function escapeHtml(text) {
+        return String(text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function parseInlineEmphasisSegments(text) {
+        var source = String(text || "");
+        var regex = /(\*\*[^*]+?\*\*|__[^_]+?__)/g;
+        var lastIndex = 0;
+        var result = [];
+        var match;
+
+        while ((match = regex.exec(source)) !== null) {
+          if (match.index > lastIndex) {
+            result.push({ text: source.slice(lastIndex, match.index), emphasis: false });
+          }
+
+          var raw = match[0];
+          result.push({ text: raw.slice(2, -2), emphasis: true });
+          lastIndex = regex.lastIndex;
+        }
+
+        if (lastIndex < source.length) {
+          result.push({ text: source.slice(lastIndex), emphasis: false });
+        }
+
+        if (!result.length) {
+          result.push({ text: source, emphasis: false });
+        }
+
+        return result
+          .map(function (item) {
+            return {
+              text: item.text || "",
+              emphasis: Boolean(item.emphasis)
+            };
+          })
+          .filter(function (item) {
+            return item.text.length > 0;
+          });
+      }
+
+      function toggleBoldInTextarea(textarea) {
+        var value = textarea.value || "";
+        var start = textarea.selectionStart;
+        var end = textarea.selectionEnd;
+
+        if (typeof start !== "number" || typeof end !== "number") {
+          return;
+        }
+
+        if (start !== end) {
+          var selected = value.slice(start, end);
+          var insideWrapped = selected.startsWith("**") && selected.endsWith("**") && selected.length >= 4;
+          var before2 = start >= 2 ? value.slice(start - 2, start) : "";
+          var after2 = value.slice(end, end + 2);
+
+          if (insideWrapped) {
+            var unwrapped = selected.slice(2, -2);
+            textarea.value = value.slice(0, start) + unwrapped + value.slice(end);
+            textarea.setSelectionRange(start, start + unwrapped.length);
+          } else if (before2 === "**" && after2 === "**") {
+            textarea.value = value.slice(0, start - 2) + selected + value.slice(end + 2);
+            textarea.setSelectionRange(start - 2, end - 2);
+          } else {
+            var wrapped = "**" + selected + "**";
+            textarea.value = value.slice(0, start) + wrapped + value.slice(end);
+            textarea.setSelectionRange(start + 2, end + 2);
+          }
+        } else {
+          var left2 = start >= 2 ? value.slice(start - 2, start) : "";
+          var right2 = value.slice(start, start + 2);
+
+          if (left2 === "**" && right2 === "**") {
+            textarea.value = value.slice(0, start - 2) + value.slice(start + 2);
+            textarea.setSelectionRange(start - 2, start - 2);
+          } else {
+            var marker = "****";
+            textarea.value = value.slice(0, start) + marker + value.slice(end);
+            textarea.setSelectionRange(start + 2, start + 2);
+          }
+        }
+      }
+
+      function richSegmentsToHtml(segments) {
+        return segments
+          .map(function (segment) {
+            var text = escapeHtml(segment.text);
+            if (!segment.emphasis) return text;
+            return '<span class="text-emphasis">' + text + "</span>";
+          })
+          .join("");
+      }
+
+      function formatMultilineHtml(text) {
+        return escapeHtml(text).replace(/\n/g, "<br>");
+      }
+
+      function formatRichMultilineHtml(text) {
+        var raw = String(text || "").replace(/\r/g, "").trim();
+        if (!raw) return "";
+
+        var paragraphs = raw
+          .split(/\n\s*\n+/)
+          .map(function (part) {
+            return part.trim();
+          })
+          .filter(Boolean);
+
+        return paragraphs
+          .map(function (paragraph) {
+            var lines = paragraph
+              .split(/\n+/)
+              .map(function (line) {
+                return line.trim();
+              })
+              .filter(Boolean);
+
+            var lineHtml = lines
+              .map(function (line) {
+                return richSegmentsToHtml(parseInlineEmphasisSegments(line));
+              })
+              .join("<br>");
+
+            return '<p class="risk-paragraph">' + lineHtml + "</p>";
+          })
+          .join("");
+      }
+
+      function normalizeArrows(text) {
+        return String(text || "").replace(/\s*(->|=>|→)\s*/g, " → ");
+      }
+
+      function normalizeBlock(text) {
+        return String(text || "")
+          .replace(/\r/g, "")
+          .split("\n")
+          .map(function (line) {
+            return normalizeArrows(line.trim());
+          })
+          .join("\n")
+          .trim();
+      }
+
+      function classifyCoreLine(line) {
+        var value = String(line || "").trim();
+        if (/^机构共识(\s*[：:])?/.test(value)) return "consensus";
+        if (/^推荐逻辑(\s*[：:])?/.test(value)) return "logic";
+        return "normal";
+      }
+
+      function parseCoreLabelLine(line) {
+        var value = String(line || "").trim();
+        var match = value.match(/^(机构共识|推荐逻辑)\s*[：:]?\s*(.*)$/);
+        if (!match) return null;
+        return {
+          kind: match[1] === "机构共识" ? "consensus" : "logic",
+          label: match[1],
+          rest: match[2] || ""
+        };
+      }
+
+      function formatCoreContentHtml(text) {
+        return String(text || "")
+          .split("\n")
+          .map(function (line) {
+            var value = line.trim();
+            if (!value) return '<span class="core-content-line gap"></span>';
+            var parsed = parseCoreLabelLine(value);
+            if (!parsed) {
+              return '<span class="core-content-line">' + richSegmentsToHtml(parseInlineEmphasisSegments(value)) + "</span>";
+            }
+            return (
+              '<span class="core-content-line">' +
+              '<span class="core-label ' + parsed.kind + '">' + escapeHtml(parsed.label) + "</span>" +
+              richSegmentsToHtml(parseInlineEmphasisSegments(parsed.rest)) +
+              "</span>"
+            );
+          })
+          .join("");
+      }
+
+      function parseOverviewParagraphs(text) {
+        var raw = String(text || "").replace(/\r/g, "").trim();
+        if (!raw) return DEFAULT_OVERVIEW.slice();
+
+        var blocks = /\n\s*\n/.test(raw) ? raw.split(/\n\s*\n+/) : raw.split(/\n+/);
+        return blocks
+          .map(function (line) {
+            return line.trim();
+          })
+          .filter(Boolean);
+      }
+
+      function collectItems(container, mapFn) {
+        return Array.from(container.children)
+          .map(mapFn)
+          .filter(function (item) {
+            return item !== null;
+          });
+      }
+
+      function sectorFromNode(node) {
+        var title = node.querySelector('input[data-key="title"]').value.trim();
+        var content = normalizeBlock(node.querySelector('textarea[data-key="content"]').value);
+        if (!title && !content) return null;
+        return {
+          title: title || "待补充板块",
+          content: content || "机构共识：请补充。\n推荐逻辑：请补充。"
+        };
+      }
+
+      function riskFromNode(node) {
+        var content = normalizeBlock(node.querySelector('textarea[data-key="content"]').value);
+        if (!content) return null;
+        return { content: content };
+      }
+
+      function getData() {
+        return {
+          date: elements.reportDate.value || todayISO(),
+          overviewParagraphs: parseOverviewParagraphs(elements.marketOverview.value),
+          sectors: collectItems(elements.sectorList, sectorFromNode),
+          risks: collectItems(elements.riskList, riskFromNode)
+        };
+      }
+
+      function buildOverviewPreview(paragraphs) {
+        elements.overviewPreview.innerHTML = paragraphs
+          .map(function (line, index) {
+            var emoji = OVERVIEW_EMOJIS[index % OVERVIEW_EMOJIS.length];
+            var richHtml = richSegmentsToHtml(parseInlineEmphasisSegments(line));
+            return (
+              '<p class="overview-paragraph">' +
+              '<span class="overview-emoji">' + emoji + "</span>" +
+              '<span class="overview-text">' + richHtml + "</span>" +
+              "</p>"
+            );
+          })
+          .join("");
+      }
+
+      function buildCorePreview(sectors) {
+        if (!sectors.length) {
+          elements.corePreview.innerHTML = '<p class="preview-placeholder">请在左侧补充热点板块内容。</p>';
+          return;
+        }
+
+        elements.corePreview.innerHTML = sectors
+          .map(function (item, index) {
+            return (
+              '<div class="core-item">' +
+              "<h4>" + (index + 1) + "、" + escapeHtml(item.title) + "</h4>" +
+              '<div class="core-content-wrap">' + formatCoreContentHtml(item.content) + "</div>" +
+              "</div>"
+            );
+          })
+          .join("");
+      }
+
+      function buildRiskPreview(risks) {
+        if (!risks.length) {
+          elements.riskPreview.innerHTML = '<div class="risk-item preview-placeholder">【待补充券商】：请补充具体风险描述。</div>';
+          return;
+        }
+
+        elements.riskPreview.innerHTML = risks
+          .map(function (item) {
+            return '<div class="risk-item">' + formatRichMultilineHtml(item.content) + "</div>";
+          })
+          .join("");
+      }
+
+      function render() {
+        var data = getData();
+        elements.cardTitle.textContent = CARD_MAIN_TITLE;
+        elements.cardDateText.textContent = formatDateCN(data.date) + " " + weekdayCN(data.date);
+        buildOverviewPreview(data.overviewParagraphs);
+        buildCorePreview(data.sectors);
+        buildRiskPreview(data.risks);
+      }
+
+      function bindDynamicRemove(container) {
+        container.addEventListener("click", function (event) {
+          var target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          var btn = target.closest(".remove-btn");
+          if (!btn) return;
+          var card = btn.closest(".item-card");
+          if (!card) return;
+          card.remove();
+          render();
+        });
+      }
+
+      function addSector(item) {
+        var fragment = elements.sectorTemplate.content.cloneNode(true);
+        var card = fragment.querySelector(".sector-item");
+        if (item) {
+          card.querySelector('input[data-key="title"]').value = item.title || "";
+          card.querySelector('textarea[data-key="content"]').value = item.content || "";
+        }
+        elements.sectorList.appendChild(fragment);
+      }
+
+      function addRisk(item) {
+        var fragment = elements.riskTemplate.content.cloneNode(true);
+        var card = fragment.querySelector(".risk-item-editor");
+        if (item) {
+          card.querySelector('textarea[data-key="content"]').value = item.content || "";
+        }
+        elements.riskList.appendChild(fragment);
+      }
+
+      function showToast(message, isError) {
+        elements.toast.textContent = message;
+        elements.toast.style.background = isError ? "#b63f24" : "#0a6d55";
+        elements.toast.classList.add("show");
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(function () {
+          elements.toast.classList.remove("show");
+        }, 1600);
+      }
+
+      function setExportButtonsBusy(isBusy) {
+        elements.copyImageBtn.disabled = isBusy;
+        elements.downloadImageBtn.disabled = isBusy;
+      }
+
+      function roundRect(ctx, x, y, w, h, r) {
+        var radius = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+      }
+
+      function getFont(size, weight) {
+        return (weight || 400) + " " + size + "px 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif";
+      }
+
+      function mergeRichLineParts(parts) {
+        if (!parts.length) return [];
+        var merged = [];
+        parts.forEach(function (part) {
+          var prev = merged[merged.length - 1];
+          if (prev && prev.emphasis === part.emphasis) {
+            prev.text += part.text;
+          } else {
+            merged.push({ text: part.text, emphasis: part.emphasis });
+          }
+        });
+        return merged;
+      }
+
+      function wrapRichSegments(ctx, segments, maxWidth, normalFont, emphasisFont) {
+        var lines = [[]];
+        var currentWidth = 0;
+
+        segments.forEach(function (segment) {
+          var chars = Array.from(segment.text || "");
+          chars.forEach(function (ch) {
+            ctx.font = segment.emphasis ? emphasisFont : normalFont;
+            var chWidth = ctx.measureText(ch).width;
+            if (currentWidth + chWidth > maxWidth && currentWidth > 0) {
+              lines.push([]);
+              currentWidth = 0;
+            }
+            lines[lines.length - 1].push({ text: ch, emphasis: segment.emphasis });
+            currentWidth += chWidth;
+          });
+        });
+
+        return lines.map(mergeRichLineParts).filter(function (line) {
+          return line.length > 0;
+        });
+      }
+
+      function wrapRichSegmentsWithFirstWidth(ctx, segments, firstMaxWidth, nextMaxWidth, normalFont, emphasisFont) {
+        var lines = [[]];
+        var currentWidth = 0;
+        var currentMax = firstMaxWidth;
+
+        segments.forEach(function (segment) {
+          var chars = Array.from(segment.text || "");
+          chars.forEach(function (ch) {
+            ctx.font = segment.emphasis ? emphasisFont : normalFont;
+            var chWidth = ctx.measureText(ch).width;
+            if (currentWidth + chWidth > currentMax && currentWidth > 0) {
+              lines.push([]);
+              currentWidth = 0;
+              currentMax = nextMaxWidth;
+            }
+            lines[lines.length - 1].push({ text: ch, emphasis: segment.emphasis });
+            currentWidth += chWidth;
+          });
+        });
+
+        return lines.map(mergeRichLineParts).filter(function (line) {
+          return line.length > 0;
+        });
+      }
+
+      function richLinesHeight(lines, lineHeight) {
+        return lines.length * lineHeight;
+      }
+
+      function drawRichLines(ctx, lines, x, y, lineHeight, normalFont, emphasisFont, normalColor, emphasisColor) {
+        var cursorY = y;
+        lines.forEach(function (line) {
+          var cursorX = x;
+          line.forEach(function (part) {
+            ctx.font = part.emphasis ? emphasisFont : normalFont;
+            ctx.fillStyle = part.emphasis ? emphasisColor : normalColor;
+            ctx.fillText(part.text, cursorX, cursorY);
+            cursorX += ctx.measureText(part.text).width;
+          });
+          cursorY += lineHeight;
+        });
+        return cursorY;
+      }
+
+      function wrapTextByChar(ctx, text, maxWidth) {
+        var content = String(text || "");
+        if (!content) return [""];
+        var lines = [];
+        var current = "";
+        for (var i = 0; i < content.length; i += 1) {
+          var ch = content.charAt(i);
+          var test = current + ch;
+          if (ctx.measureText(test).width > maxWidth && current) {
+            lines.push(current);
+            current = ch;
+          } else {
+            current = test;
+          }
+        }
+        lines.push(current);
+        return lines;
+      }
+
+      function wrapMultiline(ctx, text, maxWidth) {
+        var blocks = String(text || "").split("\n");
+        var out = [];
+        blocks.forEach(function (line, index) {
+          var wrapped = wrapTextByChar(ctx, line, maxWidth);
+          if (!wrapped.length) wrapped = [""];
+          out.push.apply(out, wrapped);
+          if (index < blocks.length - 1) {
+            out.push("");
+          }
+        });
+        return out;
+      }
+
+      function wrapRichMultiline(ctx, text, maxWidth, normalFont, emphasisFont) {
+        var blocks = String(text || "").split("\n");
+        var out = [];
+        blocks.forEach(function (line, index) {
+          var value = line.trim();
+          if (!value) {
+            out.push({ kind: "gap", parts: [] });
+          } else {
+            var richLines = wrapRichSegments(ctx, parseInlineEmphasisSegments(value), maxWidth, normalFont, emphasisFont);
+            richLines.forEach(function (parts) {
+              out.push({ kind: "text", parts: parts });
+            });
+          }
+          if (index < blocks.length - 1 && value) {
+            out.push({ kind: "gap", parts: [] });
+          }
+        });
+        return out.length ? out : [{ kind: "text", parts: [{ text: "", emphasis: false }] }];
+      }
+
+      function wrapRiskParagraphs(ctx, text, maxWidth, normalFont, emphasisFont) {
+        var raw = String(text || "").replace(/\r/g, "").trim();
+        var paragraphs = raw
+          ? raw
+              .split(/\n\s*\n+/)
+              .map(function (part) {
+                return part.trim();
+              })
+              .filter(Boolean)
+          : [""];
+
+        if (!paragraphs.length) paragraphs = [""];
+
+        return paragraphs.map(function (paragraph) {
+          return wrapRichMultiline(ctx, paragraph, maxWidth, normalFont, emphasisFont);
+        });
+      }
+
+      function wrapStyledMultiline(ctx, text, maxWidth, normalFont, emphasisFont, labelFont) {
+        var blocks = String(text || "").split("\n");
+        var out = [];
+        var labelPaddingX = 10;
+        var labelGap = 6;
+        var minWidth = 40;
+        blocks.forEach(function (line, index) {
+          var value = line.trim();
+          if (!value) {
+            out.push({ kind: "gap" });
+          } else {
+            var parsed = parseCoreLabelLine(value);
+            if (parsed) {
+              ctx.font = labelFont;
+              var labelWidth = ctx.measureText(parsed.label).width + labelPaddingX * 2 + labelGap;
+              var firstWidth = Math.max(minWidth, maxWidth - labelWidth);
+              var richSegments = parseInlineEmphasisSegments(parsed.rest);
+              var wrappedLabel = wrapRichSegmentsWithFirstWidth(
+                ctx,
+                richSegments,
+                firstWidth,
+                maxWidth,
+                normalFont,
+                emphasisFont
+              );
+
+              wrappedLabel.forEach(function (parts, idx) {
+                out.push({
+                  kind: "text",
+                  style: parsed.kind,
+                  hasLabel: idx === 0,
+                  label: idx === 0 ? parsed.label : "",
+                  parts: parts
+                });
+              });
+            } else {
+              var wrapped = wrapRichSegments(ctx, parseInlineEmphasisSegments(value), maxWidth, normalFont, emphasisFont);
+              wrapped.forEach(function (parts) {
+                out.push({ kind: "text", style: "normal", hasLabel: false, label: "", parts: parts });
+              });
+            }
+          }
+          if (index < blocks.length - 1 && value) {
+            out.push({ kind: "gap" });
+          }
+        });
+        return out.length ? out : [{ kind: "text", style: "normal", hasLabel: false, label: "", parts: [] }];
+      }
+
+      function linesHeight(lines, lineHeight) {
+        var h = 0;
+        lines.forEach(function (line) {
+          h += line ? lineHeight : Math.round(lineHeight * 0.6);
+        });
+        return h;
+      }
+
+      function drawLines(ctx, lines, x, y, lineHeight) {
+        var cursorY = y;
+        lines.forEach(function (line) {
+          if (line) {
+            ctx.fillText(line, x, cursorY);
+            cursorY += lineHeight;
+          } else {
+            cursorY += Math.round(lineHeight * 0.6);
+          }
+        });
+        return cursorY;
+      }
+
+      function styledLinesHeight(lines, lineHeight) {
+        var h = 0;
+        lines.forEach(function (line) {
+          h += line && line.kind === "gap" ? Math.round(lineHeight * 0.85) : lineHeight;
+        });
+        return h;
+      }
+
+      function richBlockHeight(lines, lineHeight) {
+        var h = 0;
+        lines.forEach(function (line) {
+          h += line && line.kind === "gap" ? Math.round(lineHeight * 0.85) : lineHeight;
+        });
+        return h;
+      }
+
+      function riskParagraphsHeight(paragraphs, lineHeight, paragraphGap) {
+        var h = 0;
+        paragraphs.forEach(function (lines, idx) {
+          h += richBlockHeight(lines, lineHeight);
+          if (idx < paragraphs.length - 1) h += paragraphGap;
+        });
+        return h;
+      }
+
+      function drawRichBlock(ctx, lines, x, y, lineHeight, normalFont, emphasisFont, normalColor, emphasisColor) {
+        var cursorY = y;
+        lines.forEach(function (line) {
+          if (!line || line.kind === "gap") {
+            cursorY += Math.round(lineHeight * 0.85);
+            return;
+          }
+
+          var cursorX = x;
+          line.parts.forEach(function (part) {
+            ctx.font = part.emphasis ? emphasisFont : normalFont;
+            ctx.fillStyle = part.emphasis ? emphasisColor : normalColor;
+            ctx.fillText(part.text, cursorX, cursorY);
+            cursorX += ctx.measureText(part.text).width;
+          });
+          cursorY += lineHeight;
+        });
+        return cursorY;
+      }
+
+      function drawRiskParagraphs(
+        ctx,
+        paragraphs,
+        x,
+        y,
+        lineHeight,
+        normalFont,
+        emphasisFont,
+        normalColor,
+        emphasisColor,
+        paragraphGap
+      ) {
+        var cursorY = y;
+        paragraphs.forEach(function (lines, idx) {
+          drawRichBlock(ctx, lines, x, cursorY, lineHeight, normalFont, emphasisFont, normalColor, emphasisColor);
+          cursorY += richBlockHeight(lines, lineHeight);
+          if (idx < paragraphs.length - 1) cursorY += paragraphGap;
+        });
+        return cursorY;
+      }
+
+      function drawStyledLines(ctx, lines, x, y, lineHeight, maxWidth, normalFont, emphasisFont, labelFont) {
+        var cursorY = y;
+        var labelPaddingX = 10;
+        var labelGap = 6;
+        lines.forEach(function (line) {
+          if (!line || line.kind === "gap") {
+            cursorY += Math.round(lineHeight * 0.85);
+            return;
+          }
+
+          var cursorX = x;
+          if (line.hasLabel && line.label) {
+            ctx.font = labelFont;
+            var fill = line.style === "consensus" ? "#eef6ff" : "#f3fbf7";
+            var stroke = line.style === "consensus" ? "#d6e8ff" : "#d7efe4";
+            var labelColor = line.style === "consensus" ? "#205a91" : "#1e6f57";
+            var labelBoxH = lineHeight - 10;
+            var labelBoxW = ctx.measureText(line.label).width + labelPaddingX * 2;
+            var boxY = cursorY + 1;
+
+            roundRect(ctx, x, boxY, labelBoxW, labelBoxH, 8);
+            ctx.fillStyle = fill;
+            ctx.fill();
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = labelColor;
+            ctx.fillText(line.label, x + labelPaddingX, cursorY + 4);
+            cursorX = x + labelBoxW + labelGap;
+          }
+
+          line.parts.forEach(function (part) {
+            ctx.font = part.emphasis ? emphasisFont : normalFont;
+            ctx.fillStyle = part.emphasis ? "#d77908" : "#21384f";
+            ctx.fillText(part.text, cursorX, cursorY);
+            cursorX += ctx.measureText(part.text).width;
+          });
+
+          cursorY += lineHeight;
+        });
+        return cursorY;
+      }
+
+      function getExportPayload() {
+        var data = getData();
+        if (!data.sectors.length) {
+          data.sectors = [{ title: "待补充板块", content: "机构共识：请补充。\n推荐逻辑：请补充。" }];
+        }
+        if (!data.risks.length) {
+          data.risks = [{ content: "【待补充券商】：请补充具体风险描述。" }];
+        }
+        return data;
+      }
+
+      function createExportCanvas(data) {
+        var measureCanvas = document.createElement("canvas");
+        var mctx = measureCanvas.getContext("2d");
+
+        var width = 1242;
+        var pagePad = 30;
+        var cardX = pagePad;
+        var cardY = pagePad;
+        var cardW = width - pagePad * 2;
+        var headH = 220;
+        var bodyPad = 24;
+        var sectionGap = 16;
+        var sectionPad = 20;
+        var sectionContentW = cardW - bodyPad * 2 - sectionPad * 2 - 10;
+
+        var titleSize = 58;
+        var dateSize = 34;
+        var sectionTitleSize = 39;
+        var overviewSize = 30;
+        var itemTitleSize = 34;
+        var itemContentSize = 28;
+        var riskSize = 28;
+        var disclaimerSize = 24;
+
+        var sectionTitleLineH = 54;
+        var overviewLineH = 44;
+        var itemTitleLineH = 46;
+        var itemContentLineH = 40;
+        var riskLineH = 40;
+        var disclaimerLineH = 34;
+        var riskParagraphGap = 22;
+        var riskItemGap = 22;
+
+        var overviewNormalFont = getFont(overviewSize, 400);
+        var overviewEmphasisFont = getFont(overviewSize, 700);
+        var sectorContentNormalFont = getFont(itemContentSize, 400);
+        var sectorContentEmphasisFont = getFont(itemContentSize, 700);
+        var sectorLabelFont = getFont(itemContentSize, 700);
+        var riskNormalFont = getFont(riskSize, 400);
+        var riskEmphasisFont = getFont(riskSize, 700);
+        mctx.font = overviewNormalFont;
+        var overviewBlocks = data.overviewParagraphs.map(function (line, idx) {
+          var emoji = OVERVIEW_EMOJIS[idx % OVERVIEW_EMOJIS.length];
+          var segments = [{ text: emoji + " ", emphasis: false }].concat(parseInlineEmphasisSegments(line));
+          return wrapRichSegments(mctx, segments, sectionContentW, overviewNormalFont, overviewEmphasisFont);
+        });
+
+        mctx.font = getFont(itemTitleSize, 700);
+        var sectorBlocks = data.sectors.map(function (item, index) {
+          var titleLines = wrapTextByChar(mctx, (index + 1) + "、" + item.title, sectionContentW - 18);
+          mctx.font = sectorContentNormalFont;
+          var contentLines = wrapStyledMultiline(
+            mctx,
+            item.content,
+            sectionContentW - 60,
+            sectorContentNormalFont,
+            sectorContentEmphasisFont,
+            sectorLabelFont
+          );
+          mctx.font = getFont(itemTitleSize, 700);
+          return {
+            titleLines: titleLines,
+            contentLines: contentLines
+          };
+        });
+
+        mctx.font = riskNormalFont;
+        var riskBlocks = data.risks.map(function (item) {
+          return wrapRiskParagraphs(mctx, item.content, sectionContentW, riskNormalFont, riskEmphasisFont);
+        });
+
+        mctx.font = getFont(disclaimerSize, 400);
+        var disclaimerLines = wrapTextByChar(
+          mctx,
+          "以上内容来源均为持牌券商研究所，仅供信息参考，不构成任何投资建议。",
+          sectionContentW - 24
+        );
+
+        var overviewHeight = sectionPad + sectionTitleLineH + 12;
+        overviewBlocks.forEach(function (lines, idx) {
+          overviewHeight += richLinesHeight(lines, overviewLineH);
+          if (idx < overviewBlocks.length - 1) overviewHeight += 22;
+        });
+        overviewHeight += sectionPad;
+
+        var sectorHeight = sectionPad + sectionTitleLineH + 10;
+        sectorBlocks.forEach(function (block, idx) {
+          var itemHeight =
+            14 + linesHeight(block.titleLines, itemTitleLineH) + 10 + styledLinesHeight(block.contentLines, itemContentLineH) + 14;
+          sectorHeight += itemHeight;
+          if (idx < sectorBlocks.length - 1) sectorHeight += 12;
+        });
+        sectorHeight += sectionPad;
+
+        var riskHeight = sectionPad + sectionTitleLineH + 10;
+        riskBlocks.forEach(function (paragraphs, idx) {
+          var itemHeight = 12 + riskParagraphsHeight(paragraphs, riskLineH, riskParagraphGap) + 12;
+          riskHeight += itemHeight;
+          if (idx < riskBlocks.length - 1) riskHeight += riskItemGap;
+        });
+        riskHeight += 12 + 16 + linesHeight(disclaimerLines, disclaimerLineH) + 16;
+        riskHeight += sectionPad;
+
+        var bodyH = bodyPad * 2 + overviewHeight + sectionGap + sectorHeight + sectionGap + riskHeight;
+        var cardH = headH + bodyH;
+        var height = cardY * 2 + cardH;
+        var scale = 2;
+
+        var canvas = document.createElement("canvas");
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        var ctx = canvas.getContext("2d");
+        ctx.scale(scale, scale);
+
+        var bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+        bgGrad.addColorStop(0, "#edf4fd");
+        bgGrad.addColorStop(1, "#e8f0fb");
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.shadowColor = "rgba(13,43,74,0.18)";
+        ctx.shadowBlur = 26;
+        ctx.shadowOffsetY = 8;
+        roundRect(ctx, cardX, cardY, cardW, cardH, 16);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.restore();
+
+        roundRect(ctx, cardX, cardY, cardW, cardH, 16);
+        ctx.strokeStyle = "#cfdae8";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.save();
+        roundRect(ctx, cardX, cardY, cardW, headH, 16);
+        ctx.clip();
+        var headGrad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + headH);
+        headGrad.addColorStop(0, "#0f3f72");
+        headGrad.addColorStop(1, "#145389");
+        ctx.fillStyle = headGrad;
+        ctx.fillRect(cardX, cardY, cardW, headH);
+        ctx.restore();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.font = getFont(titleSize, 700);
+        ctx.fillText(CARD_MAIN_TITLE, cardX + cardW / 2, cardY + 54);
+        ctx.font = getFont(dateSize, 400);
+        ctx.fillText(formatDateCN(data.date) + " " + weekdayCN(data.date), cardX + cardW / 2, cardY + 132);
+
+        var bodyY = cardY + headH;
+        ctx.fillStyle = "#f8fbff";
+        ctx.fillRect(cardX, bodyY, cardW, bodyH);
+
+        var sectionX = cardX + bodyPad;
+        var sectionW = cardW - bodyPad * 2;
+        var drawY = bodyY + bodyPad;
+
+        function drawSection(title, heightPx, stripeColor) {
+          roundRect(ctx, sectionX, drawY, sectionW, heightPx, 10);
+          ctx.fillStyle = "#ffffff";
+          ctx.fill();
+          ctx.strokeStyle = "#deebf7";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          roundRect(ctx, sectionX, drawY + 10, 4, Math.max(20, heightPx - 20), 2);
+          ctx.fillStyle = stripeColor;
+          ctx.fill();
+
+          var contentX = sectionX + sectionPad + 8;
+          var contentY = drawY + sectionPad;
+          ctx.fillStyle = "#114579";
+          ctx.textAlign = "left";
+          ctx.font = getFont(sectionTitleSize, 700);
+          ctx.fillText(title, contentX, contentY);
+
+          return {
+            x: contentX,
+            y: contentY + sectionTitleLineH + 8,
+            endY: drawY + heightPx,
+            blockX: sectionX + 10,
+            blockW: sectionW - 20
+          };
+        }
+
+        var marketArea = drawSection("📊 市场综述", overviewHeight, "#1986c8");
+        var marketY = marketArea.y;
+        overviewBlocks.forEach(function (lines, idx) {
+          marketY = drawRichLines(
+            ctx,
+            lines,
+            marketArea.x,
+            marketY,
+            overviewLineH,
+            overviewNormalFont,
+            overviewEmphasisFont,
+            "#21384f",
+            "#d77908"
+          );
+          if (idx < overviewBlocks.length - 1) marketY += 22;
+        });
+        drawY += overviewHeight + sectionGap;
+
+        var hotArea = drawSection("🔥 热点板块", sectorHeight, "#1986c8");
+        var hotY = hotArea.y;
+        sectorBlocks.forEach(function (block, idx) {
+          var itemH =
+            14 + linesHeight(block.titleLines, itemTitleLineH) + 10 + styledLinesHeight(block.contentLines, itemContentLineH) + 14;
+          roundRect(ctx, hotArea.blockX, hotY, hotArea.blockW, itemH, 8);
+          ctx.fillStyle = "#f9fcff";
+          ctx.fill();
+          ctx.strokeStyle = "#d5e5f6";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          var itemX = hotArea.blockX + 14;
+          var itemTextY = hotY + 12;
+
+          ctx.fillStyle = "#134f85";
+          ctx.font = getFont(itemTitleSize, 700);
+          itemTextY = drawLines(ctx, block.titleLines, itemX, itemTextY, itemTitleLineH);
+
+          ctx.fillStyle = "#21384f";
+          ctx.font = sectorContentNormalFont;
+          itemTextY += 8;
+          drawStyledLines(
+            ctx,
+            block.contentLines,
+            itemX,
+            itemTextY,
+            itemContentLineH,
+            hotArea.blockW - 26,
+            sectorContentNormalFont,
+            sectorContentEmphasisFont,
+            sectorLabelFont
+          );
+
+          hotY += itemH;
+          if (idx < sectorBlocks.length - 1) hotY += 12;
+        });
+        drawY += sectorHeight + sectionGap;
+
+        var riskArea = drawSection("❗ 风险提示", riskHeight, "#eb7f62");
+        var riskY = riskArea.y;
+        ctx.fillStyle = "#21384f";
+        ctx.font = riskNormalFont;
+        riskBlocks.forEach(function (paragraphs, idx) {
+          var itemH = 12 + riskParagraphsHeight(paragraphs, riskLineH, riskParagraphGap) + 12;
+          roundRect(ctx, riskArea.blockX, riskY, riskArea.blockW, itemH, 8);
+          ctx.fillStyle = "#fff7f4";
+          ctx.fill();
+          ctx.strokeStyle = "#f0c7bc";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          drawRiskParagraphs(
+            ctx,
+            paragraphs,
+            riskArea.x,
+            riskY + 12,
+            riskLineH,
+            riskNormalFont,
+            riskEmphasisFont,
+            "#21384f",
+            "#d77908",
+            riskParagraphGap
+          );
+          riskY += itemH;
+          if (idx < riskBlocks.length - 1) riskY += riskItemGap;
+        });
+
+        var disclaimerY = riskY + 12;
+        var disclaimerH = 16 + linesHeight(disclaimerLines, disclaimerLineH) + 16;
+        roundRect(ctx, riskArea.blockX, disclaimerY, riskArea.blockW, disclaimerH, 8);
+        ctx.fillStyle = "#f1f6fd";
+        ctx.fill();
+        ctx.strokeStyle = "#bfd2e8";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = "#587090";
+        ctx.font = getFont(disclaimerSize, 400);
+        drawLines(ctx, disclaimerLines, riskArea.blockX + 12, disclaimerY + 12, disclaimerLineH);
+
+        return canvas;
+      }
+
+      function canvasToBlob(canvas) {
+        return new Promise(function (resolve, reject) {
+          canvas.toBlob(
+            function (blob) {
+              if (!blob) {
+                reject(new Error("导出失败"));
+                return;
+              }
+              resolve(blob);
+            },
+            "image/png",
+            1
+          );
+        });
+      }
+
+      async function createExportBlob() {
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+        var payload = getExportPayload();
+        var canvas = createExportCanvas(payload);
+        return canvasToBlob(canvas);
+      }
+
+      function triggerDownload(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "券商晨会-" + todayISO() + ".png";
+        if (typeof a.download === "string") {
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        } else {
+          window.open(url, "_blank");
+        }
+        setTimeout(function () {
+          URL.revokeObjectURL(url);
+        }, 500);
+      }
+
+      async function copyImage() {
+        setExportButtonsBusy(true);
+        try {
+          var blob = await createExportBlob();
+          var canCopy = window.isSecureContext && navigator.clipboard && typeof ClipboardItem !== "undefined";
+
+          if (canCopy) {
+            try {
+              await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+              showToast("卡片图片已复制");
+            } catch (copyErr) {
+              triggerDownload(blob);
+              showToast("复制受限，已自动下载图片", true);
+            }
+          } else {
+            triggerDownload(blob);
+            showToast("当前环境不支持复制，已自动下载图片", true);
+          }
+        } catch (error) {
+          showToast("导出失败，请重试", true);
+        } finally {
+          setExportButtonsBusy(false);
+        }
+      }
+
+      async function downloadImage() {
+        setExportButtonsBusy(true);
+        try {
+          var blob = await createExportBlob();
+          triggerDownload(blob);
+          showToast("卡片图片已下载");
+        } catch (error) {
+          showToast("下载失败，请稍后重试", true);
+        } finally {
+          setExportButtonsBusy(false);
+        }
+      }
+
+      function fillDemo() {
+        elements.reportDate.value = todayISO();
+        elements.marketOverview.value =
+          "今日整理6家券商晨会观点，多数券商认为**地缘风险与行业分化**是核心变量，市场呈现结构性机会。\n\n" +
+          "券商共识集中在石化产业链、创新药产业链、新能源设备等3个核心板块，**能源自主与产业升级并重**。在热点板块上，多数券商建议关注煤化工、低估值补涨、锂电设备、CXO、可再生能源等方向。\n\n" +
+          "市场风险上，市场波动加剧，需关注霍尔木兹海峡通航、油价走势（WTI约115美元/桶）、衰退交易风险等，格外警惕**地缘冲突持续、全球经济下行压力**等风险。";
+
+        elements.sectorList.innerHTML = "";
+        elements.riskList.innerHTML = "";
+
+        addSector({
+          title: "石化产业链与煤化工",
+          content:
+            "机构共识：华泰证券看好石化产业链重构，认为霍尔木兹海峡管控致亚洲石化链断供加深，中国煤化工替代路线优势凸显。\n" +
+            "推荐逻辑：海峡管控 -> 亚洲石化降负 -> 成本推动价格普涨 -> 煤头/气头路线效益改善"
+        });
+
+        addRisk({
+          content:
+            "【中原证券】：4月中东地缘冲突存在超预期演绎风险，若局势继续升级可能推高油价并引发全球风险偏好下行。"
+        });
+        addRisk({
+          content:
+            "【华泰证券/中金公司】：4月中下旬进入A股年报和一季报密集披露期，前期无业绩支撑的高估值题材股面临“戴维斯双杀”风险，个股分化将显著加剧。"
+        });
+        addRisk({
+          content:
+            "【德邦证券】：霍尔木兹海峡通航风险尚未解除，中东局势若引发油价大幅上行，将对通胀预期和全球流动性产生压力，进而冲击A股风险偏好。"
+        });
+        addRisk({
+          content:
+            "【中原证券】：海外流动性若边际收紧，可能触发与国内下行的共振，需关注美联储政策信号变化。"
+        });
+        addRisk({
+          content:
+            "【东方证券】：中东局势每逢关键节点（如本周）存在突发风险，可能造成A股预期外波动；若叠加业绩不及预期，个股回撤幅度可能较大。"
+        });
+
+        render();
+      }
+
+      function clearAll() {
+        elements.marketOverview.value = "";
+        elements.sectorList.innerHTML = "";
+        elements.riskList.innerHTML = "";
+        addSector({ title: "", content: "" });
+        addRisk({ content: "" });
+        render();
+      }
+
+      function init() {
+        elements.reportDate.value = todayISO();
+        addSector({ title: "", content: "" });
+        addRisk({ content: "" });
+
+        bindDynamicRemove(elements.sectorList);
+        bindDynamicRemove(elements.riskList);
+
+        document.body.addEventListener("input", function () {
+          render();
+        });
+
+        elements.addSectorBtn.addEventListener("click", function () {
+          addSector({ title: "", content: "" });
+          render();
+        });
+
+        elements.addRiskBtn.addEventListener("click", function () {
+          addRisk({ content: "" });
+          render();
+        });
+
+        elements.fillDemoBtn.addEventListener("click", fillDemo);
+        elements.clearBtn.addEventListener("click", clearAll);
+        elements.copyImageBtn.addEventListener("click", copyImage);
+        elements.downloadImageBtn.addEventListener("click", downloadImage);
+        document.body.addEventListener("keydown", function (event) {
+          var isBoldKey = event.key === "b" || event.key === "B";
+          var withModifier = event.ctrlKey || event.metaKey;
+          if (!isBoldKey || !withModifier || event.altKey) return;
+
+          var target = event.target;
+          if (!(target instanceof HTMLTextAreaElement)) return;
+          if (target.readOnly || target.disabled) return;
+
+          event.preventDefault();
+          toggleBoldInTextarea(target);
+          render();
+        });
+
+        render();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
