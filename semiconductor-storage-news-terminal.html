@@ -1733,7 +1733,7 @@
           region: inferRegion(relatedCompanies),
           title,
           summary,
-          source: source ? `腾讯自选股APP · ${source}` : "腾讯自选股APP",
+          source: source || "未标注来源",
           source_url: sourceUrl,
           impact_score: inferImpactScore(blob),
           related_stocks: buildRelatedStocks(relatedCompanies),
@@ -1824,9 +1824,7 @@
         const sourceFlags = [];
         if (tencentRows.length) {
           sourceFlags.push(
-            hasFreshTencentRows
-              ? `腾讯自选股APP ${tencentRows.length}`
-              : `腾讯自选股APP 缓存${tencentRows.length}`
+            hasFreshTencentRows ? `腾讯来源 ${tencentRows.length}` : `腾讯来源 缓存${tencentRows.length}`
           );
         }
         if (clsRows.length) sourceFlags.push(`财联社${clsRows.length}`);
