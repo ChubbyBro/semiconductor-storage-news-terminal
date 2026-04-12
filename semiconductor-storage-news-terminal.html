@@ -1671,7 +1671,7 @@
       }
 
       function normalizeTencentNewsItem(item, fallbackCompany, index) {
-        const source = String(item?.src || "腾讯自选股").trim();
+        const source = String(item?.src || "").trim();
         if (isBlockedTencentSource(source)) return null;
 
         const title = truncateText(String(item?.title || "").trim(), 46);
@@ -1700,7 +1700,7 @@
           region: inferRegion(relatedCompanies),
           title,
           summary,
-          source: source || "腾讯自选股",
+          source: source ? `腾讯自选股APP · ${source}` : "腾讯自选股APP",
           source_url: sourceUrl,
           impact_score: inferImpactScore(blob),
           related_stocks: buildRelatedStocks(relatedCompanies),
@@ -1771,7 +1771,7 @@
         renderNews();
 
         const sourceFlags = [];
-        if (tencentRows.length) sourceFlags.push(`腾讯${tencentRows.length}`);
+        if (tencentRows.length) sourceFlags.push(`腾讯自选股APP ${tencentRows.length}`);
         if (clsRows.length) sourceFlags.push(`财联社${clsRows.length}`);
         newsUpdated.textContent = `${formatTimestamp(new Date())}（${sourceFlags.join(" / ") || "已刷新"}）`;
       }
