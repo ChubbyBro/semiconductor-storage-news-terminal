@@ -1153,6 +1153,8 @@
         "https://qt.gtimg.cn/q=usSNDK,usMU,usSTX,usWDC,sz001309,sh603986,sz301308,sh688525,sh688008,sz300475";
       const TENCENT_NEWS_API_URL =
         "https://proxy.finance.qq.com/ifzqgtimg/appstock/news/info/search";
+      const TENCENT_NEWS_CACHE_KEY = "seminews_tencent_rows_v2";
+      const TENCENT_NEWS_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6;
       const TENCENT_NEWS_COMPANIES = [
         { company: "闪迪", symbol: "usSNDK" },
         { company: "美光", symbol: "usMU" },
@@ -1191,6 +1193,7 @@
 
       let newsData = [...FALLBACK_NEWS_DATA];
       let windMarketData = [...DEFAULT_WIND_MARKET_DATA];
+      let tencentRowsCache = [];
 
       function parseTimestamp(value) {
         const match = String(value).match(
@@ -1653,6 +1656,36 @@
         return Array.from(BLOCKED_TENCENT_SOURCES).some((blocked) => value.includes(blocked));
       }
 
+      function loadTencentRowsFromCache() {
+        try {
+          const raw = localStorage.getItem(TENCENT_NEWS_CACHE_KEY);
+          if (!raw) return [];
+          const payload = JSON.parse(raw);
+          if (!payload || !Array.isArray(payload.rows)) return [];
+          const savedAt = Number(payload.saved_at || 0);
+          if (!savedAt || Date.now() - savedAt > TENCENT_NEWS_CACHE_MAX_AGE_MS) return [];
+          return payload.rows
+            .filter((item) => item && item.title && item.timestamp)
+            .filter((item) => !isBlockedTencentSource(item.source));
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function saveTencentRowsToCache(rows) {
+        try {
+          localStorage.setItem(
+            TENCENT_NEWS_CACHE_KEY,
+            JSON.stringify({
+              saved_at: Date.now(),
+              rows: (rows || []).slice(0, 180),
+            })
+          );
+        } catch (error) {
+          // Ignore storage failures (private mode / quota).
+        }
+      }
+
       function extractTencentRelatedCompanies(item, fallbackCompany, textBlob) {
         const set = new Set();
         const rawSymbols = [];
@@ -1712,11 +1745,13 @@
       }
 
       async function fetchTencentNewsByCompany(companyItem) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
         try {
           const url =
             `${TENCENT_NEWS_API_URL}?page=1&symbol=${encodeURIComponent(companyItem.symbol)}` +
             `&n=20&_var=finance_notice&type=2&_t=${Date.now()}`;
-          const response = await fetch(url, { cache: "no-store" });
+          const response = await fetch(url, { cache: "no-store", signal: controller.signal });
           if (!response.ok) return [];
           const text = await response.text();
           const payload = parseTencentNewsJsonp(text);
@@ -1727,6 +1762,8 @@
             .filter(Boolean);
         } catch (error) {
           return [];
+        } finally {
+          clearTimeout(timeout);
         }
       }
 
@@ -1763,7 +1800,21 @@
           }
         }
 
-        const tencentRows = await tencentRowsPromise;
+        let tencentRows = await tencentRowsPromise;
+        const hasFreshTencentRows = tencentRows.length > 0;
+        if (hasFreshTencentRows) {
+          tencentRowsCache = tencentRows;
+          saveTencentRowsToCache(tencentRows);
+        } else if (tencentRowsCache.length) {
+          tencentRows = tencentRowsCache;
+        } else {
+          const cachedRows = loadTencentRowsFromCache();
+          if (cachedRows.length) {
+            tencentRowsCache = cachedRows;
+            tencentRows = cachedRows;
+          }
+        }
+
         const mergedRows = mergeNewsData([...tencentRows, ...clsRows]);
         if (!mergedRows.length) return;
 
@@ -1771,7 +1822,13 @@
         renderNews();
 
         const sourceFlags = [];
-        if (tencentRows.length) sourceFlags.push(`腾讯自选股APP ${tencentRows.length}`);
+        if (tencentRows.length) {
+          sourceFlags.push(
+            hasFreshTencentRows
+              ? `腾讯自选股APP ${tencentRows.length}`
+              : `腾讯自选股APP 缓存${tencentRows.length}`
+          );
+        }
         if (clsRows.length) sourceFlags.push(`财联社${clsRows.length}`);
         newsUpdated.textContent = `${formatTimestamp(new Date())}（${sourceFlags.join(" / ") || "已刷新"}）`;
       }
@@ -1801,6 +1858,10 @@
 
       renderTicker();
       renderFilters();
+      tencentRowsCache = loadTencentRowsFromCache();
+      if (tencentRowsCache.length) {
+        newsData = mergeNewsData([...tencentRowsCache]);
+      }
       renderNews();
       renderWatchlist();
       renderCalendar();
