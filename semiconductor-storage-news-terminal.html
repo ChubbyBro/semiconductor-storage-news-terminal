@@ -1245,7 +1245,7 @@
         const cleaned = cleanFeedText(rawSummary);
         const parts = cleaned.split("。").filter(Boolean).slice(0, 2);
         const merged = parts.join("。");
-        return truncateText(merged ? `${merged}。` : cleaned, 110);
+        return truncateText(merged ? `${merged}。` : cleaned, 220);
       }
 
       function normalizeTitle(rawTitle, rawSummary) {
