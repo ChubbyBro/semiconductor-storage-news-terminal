@@ -1484,6 +1484,12 @@
                   <h2 class="news-title">${news.title}</h2>
                   <p class="news-summary">${news.summary}</p>
 
+                  ${
+                    news.source && news.source_url
+                      ? `<p class="news-source">来源：<span>${news.source}</span> · <a href="${news.source_url}" target="_blank" rel="noopener noreferrer">原文链接</a></p>`
+                      : ""
+                  }
+
                   <div class="news-footer">
                     <div class="stock-list">
                       ${(news.related_companies || [])
@@ -1492,12 +1498,6 @@
                         .join("")}
                     </div>
                   </div>
-
-                  ${
-                    news.source && news.source_url
-                      ? `<p class="news-source">来源：<span>${news.source}</span> · <a href="${news.source_url}" target="_blank" rel="noopener noreferrer">原文链接</a></p>`
-                      : ""
-                  }
                 </div>
               </article>
             `;
