@@ -1360,6 +1360,7 @@
         const byLink = new Map();
         [...dynamicRows, ...FALLBACK_NEWS_DATA]
           .filter((item) => item && item.title && item.timestamp)
+          .filter((item) => !isBlockedTencentSource(item.source))
           .forEach((item) => {
             const key = item.source_url || `${item.timestamp}-${normalizeNewsTitleKey(item.title)}`;
             if (!byLink.has(key)) {
@@ -1427,6 +1428,7 @@
         const query = state.searchText.trim().toLowerCase();
 
         return newsData
+          .filter((item) => !isBlockedTencentSource(item.source))
           .filter((item) => {
             const matchesFilter =
               state.activeFilter === "All" || (item.related_companies || []).includes(state.activeFilter);
