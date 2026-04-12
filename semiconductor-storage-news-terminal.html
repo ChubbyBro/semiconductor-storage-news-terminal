@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Semiconductor Storage Financial Terminal</title>
+    <style>
+      :root {
+        --bg: #020617;
+        --line: #1e293b;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --red: #ef4444;
+        --blue: #38bdf8;
+        --green: #22c55e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      }
+
+      body {
+        background-image: linear-gradient(rgba(30, 41, 59, 0.2) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(30, 41, 59, 0.14) 1px, transparent 1px);
+        background-size: 40px 40px;
+      }
+
+      .top-ticker {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        background: rgba(2, 6, 23, 0.95);
+        backdrop-filter: blur(6px);
+        overflow: hidden;
+      }
+
+      .container {
+        width: min(1680px, 100%);
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+
+      .ticker-inner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .ticker-label {
+        flex: 0 0 auto;
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--blue);
+        white-space: nowrap;
+      }
+
+      .ticker-track-wrap {
+        overflow: hidden;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .ticker-track {
+        display: inline-flex;
+        gap: 26px;
+        white-space: nowrap;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+        font-size: 11px;
+        animation: marquee 30s linear infinite;
+        padding-right: 26px;
+      }
+
+      .ticker-up {
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      .ticker-down {
+        color: var(--green);
+        font-weight: 700;
+      }
+
+      @keyframes marquee {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(-50%);
+        }
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 2fr 7fr 3fr;
+        gap: 16px;
+        padding: 16px 0 22px;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        background: rgba(15, 23, 42, 0.7);
+        border-radius: 12px;
+        box-shadow: 0 16px 36px rgba(2, 6, 23, 0.45);
+      }
+
+      .left-panel,
+      .right-panel {
+        align-self: start;
+      }
+
+      .left-panel {
+        padding: 12px;
+      }
+
+      .search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(2, 6, 23, 0.6);
+        padding: 8px 10px;
+        margin-bottom: 12px;
+      }
+
+      .search-box span {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .search-box input {
+        width: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .search-box input::placeholder {
+        color: #64748b;
+      }
+
+      .filters {
+        display: grid;
+        gap: 6px;
+      }
+
+      .filter-btn {
+        border: none;
+        background: transparent;
+        border-radius: 8px;
+        color: #cbd5e1;
+        text-align: left;
+        padding: 9px 10px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+      }
+
+      .filter-btn:hover {
+        background: rgba(30, 41, 59, 0.8);
+        color: #fff;
+      }
+
+      .filter-btn.active {
+        background: #0369a1;
+        color: #fff;
+        font-weight: 700;
+      }
+
+      .filter-meta {
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .filter-meta b {
+        color: var(--blue);
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+      }
+
+      .main-panel {
+        padding: 16px;
+      }
+
+      .main-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      .main-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .main-title .zap {
+        color: #f59e0b;
+      }
+
+      .update-tip {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .timeline {
+        position: relative;
+        margin-left: 6px;
+        border-left: 1px solid var(--line);
+        padding-left: 20px;
+      }
+
+      .news-item {
+        position: relative;
+        margin-bottom: 16px;
+      }
+
+      .news-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .news-dot {
+        position: absolute;
+        left: -25px;
+        top: 7px;
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        box-shadow: 0 0 0 4px var(--bg);
+      }
+
+      .dot-up {
+        background: var(--red);
+      }
+
+      .dot-down {
+        background: var(--blue);
+      }
+
+      .news-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+
+      .meta-time {
+        font-size: 11px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+      }
+
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 10px;
+        line-height: 1;
+        padding: 4px 7px;
+        font-weight: 700;
+      }
+
+      .pill-cn {
+        border-color: rgba(239, 68, 68, 0.35);
+        color: var(--red);
+        background: rgba(239, 68, 68, 0.1);
+      }
+
+      .pill-global {
+        border-color: rgba(56, 189, 248, 0.35);
+        color: var(--blue);
+        background: rgba(56, 189, 248, 0.1);
+      }
+
+      .pill-neutral {
+        color: var(--muted);
+        background: rgba(15, 23, 42, 0.9);
+      }
+
+      .pill-report {
+        border-color: rgba(245, 158, 11, 0.35);
+        color: #fbbf24;
+        background: rgba(245, 158, 11, 0.12);
+      }
+
+      .pill-account {
+        border-color: rgba(34, 197, 94, 0.35);
+        color: #86efac;
+        background: rgba(34, 197, 94, 0.12);
+      }
+
+      .news-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(2, 6, 23, 0.45);
+        padding: 14px;
+        transition: all 0.2s;
+      }
+
+      .news-card:hover {
+        border-color: rgba(56, 189, 248, 0.45);
+        background: rgba(15, 23, 42, 0.75);
+      }
+
+      .news-title {
+        margin: 0 0 7px;
+        font-size: 18px;
+        line-height: 1.45;
+      }
+
+      .news-summary {
+        margin: 0 0 10px;
+        color: #cbd5e1;
+        line-height: 1.6;
+        font-size: 14px;
+      }
+
+      .news-source {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .news-source a {
+        color: #7dd3fc;
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(125, 211, 252, 0.55);
+      }
+
+      .news-source a:hover {
+        color: #bae6fd;
+        border-bottom-color: #bae6fd;
+      }
+
+      .impact-bar {
+        width: 100%;
+        height: 6px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: #1e293b;
+        margin-bottom: 10px;
+      }
+
+      .impact-fill {
+        height: 100%;
+      }
+
+      .impact-up {
+        background: var(--red);
+      }
+
+      .impact-down {
+        background: var(--blue);
+      }
+
+      .news-footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .stock-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .stock-pill {
+        border: 1px solid rgba(56, 189, 248, 0.32);
+        border-radius: 7px;
+        background: rgba(56, 189, 248, 0.1);
+        color: #7dd3fc;
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+        font-size: 11px;
+        padding: 4px 7px;
+      }
+
+      .impact-label {
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .impact-label.up {
+        color: var(--red);
+      }
+
+      .impact-label.down {
+        color: var(--blue);
+      }
+
+      .empty {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .right-panel {
+        display: grid;
+        gap: 16px;
+      }
+
+      .right-block {
+        padding: 14px;
+      }
+
+      .investing-widget-wrap {
+        border: 1px solid rgba(30, 41, 59, 0.8);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      .investing-widget-wrap iframe {
+        width: 100%;
+        height: 500px;
+        border: 0;
+        display: block;
+        background: #ffffff;
+      }
+
+      .investing-fallback {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .investing-fallback a {
+        color: #7dd3fc;
+        text-decoration: none;
+      }
+
+      .block-title {
+        margin: 0 0 12px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .watch-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(30, 41, 59, 0.8);
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+      }
+
+      .watch-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 0;
+      }
+
+      .watch-name {
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .watch-code,
+      .watch-price {
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+      }
+
+      .watch-code {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .watch-price {
+        font-size: 14px;
+      }
+
+      .watch-change {
+        text-align: right;
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .watch-change.up {
+        color: var(--red);
+      }
+
+      .watch-change.down {
+        color: var(--green);
+      }
+
+      .watch-change.flat {
+        color: var(--muted);
+      }
+
+      .calendar-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+
+      .calendar-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+      }
+
+      .calendar-date {
+        flex: 0 0 auto;
+        border: 1px solid rgba(56, 189, 248, 0.32);
+        background: rgba(56, 189, 248, 0.1);
+        color: #7dd3fc;
+        border-radius: 999px;
+        font-size: 11px;
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+        padding: 4px 8px;
+      }
+
+      .calendar-event {
+        font-size: 14px;
+      }
+
+      .calendar-focus {
+        color: var(--muted);
+        font-size: 11px;
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+      }
+
+      @media (max-width: 1200px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .main-panel {
+          order: 1;
+        }
+
+        .left-panel {
+          order: 2;
+        }
+
+        .right-panel {
+          order: 3;
+        }
+
+        .main-title {
+          font-size: 20px;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .container {
+          padding: 0 10px;
+        }
+
+        .layout {
+          gap: 12px;
+          padding: 12px 0 16px;
+        }
+
+        .main-panel,
+        .left-panel,
+        .right-block {
+          padding: 12px;
+        }
+
+        .news-title {
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top-ticker">
+      <div class="container ticker-inner">
+        <div class="ticker-label">▲ LIVE STORAGE & INDEX</div>
+        <div class="ticker-track-wrap">
+          <div class="ticker-track" id="ticker-track"></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="layout">
+        <aside class="left-panel panel">
+          <div class="search-box">
+            <span>⌕</span>
+            <input id="search-input" placeholder="搜索行业动态..." />
+          </div>
+          <div class="filters" id="filter-list"></div>
+          <div class="filter-meta">当前命中 <b id="hit-count">0</b> 条快讯</div>
+        </aside>
+
+        <main class="main-panel panel">
+          <div class="main-head">
+            <h1 class="main-title"><span class="zap">⚡</span> 存储行业 7x24 终端快讯</h1>
+            <div class="update-tip">
+              自动更新中（新闻300s/行情60s） · <span id="clock">--:--:--</span> · 新闻刷新：
+              <span id="news-updated">--</span>
+            </div>
+          </div>
+          <div class="timeline" id="timeline"></div>
+        </main>
+
+        <aside class="right-panel">
+          <section class="right-block panel">
+            <h3 class="block-title">📈 Wind 公司池行情（10家公司）</h3>
+            <div class="investing-fallback">
+              数据来源：Wind 公司池（本地导出）+ 实时行情抓取。最后刷新：<span id="watch-updated">--</span>
+            </div>
+            <div id="watch-list"></div>
+          </section>
+
+          <section class="right-block panel">
+            <h3 class="block-title">🗓 Industry Calendar</h3>
+            <ul class="calendar-list" id="calendar-list"></ul>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <script>
+      const COMPANY_ALIAS_MAP = {
+        闪迪: ["闪迪", "Sandisk", "SNDK"],
+        美光: ["美光", "美光科技", "Micron"],
+        希捷科技: ["希捷科技", "希捷", "Seagate"],
+        西部数据: ["西部数据", "西数", "Western Digital"],
+        海力士: ["海力士", "SK海力士", "SK hynix", "SK Hynix"],
+        三星电子: ["三星电子", "三星"],
+        铠侠: ["铠侠", "Kioxia"],
+        德明利: ["德明利"],
+        兆易创新: ["兆易创新"],
+        江波龙: ["江波龙"],
+        佰维存储: ["佰维存储"],
+        澜起科技: ["澜起科技", "澜起"],
+        香农芯创: ["香农芯创"],
+      };
+
+      const COMPANY_STOCK_MAP = {
+        闪迪: "SNDK.US",
+        美光: "MU.US",
+        希捷科技: "STX.US",
+        西部数据: "WDC.US",
+        海力士: "000660.KS",
+        三星电子: "005930.KS",
+        铠侠: "285A.T",
+        德明利: "001309.SZ",
+        兆易创新: "603986.SH",
+        江波龙: "301308.SZ",
+        佰维存储: "688525.SH",
+        澜起科技: "688008.SH",
+        香农芯创: "300475.SZ",
+      };
+
+      const FALLBACK_NEWS_DATA = [
+        {
+          id: 1,
+          timestamp: "2026-04-11 14:23",
+          region: "美国",
+          title: "闪迪将于4月20日跻身纳指100",
+          summary:
+            "纳斯达克宣布闪迪将于4月20日开盘前加入纳斯达克100指数。该调整预计带来被动资金增配，成为近期存储美股最强催化之一。",
+          source: "财联社（存储芯片专题）",
+          source_url: "https://www.cls.cn/detail/2341244",
+          impact_score: 0.6,
+          related_stocks: ["SNDK.US"],
+          related_companies: ["闪迪"],
+          category: "NAND",
+          market_scope: "Global",
+          item_type: "公司动态",
+        },
+        {
+          id: 2,
+          timestamp: "2026-04-10 13:44",
+          region: "中国",
+          title: "午后存储概念走强，德明利封涨停",
+          summary:
+            "午后存储概念继续拉升，德明利封涨停并创出新高，佰维存储、兆易创新、江波龙等跟涨。市场同步交易HBM与DDR产能收缩预期。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2340246",
+          impact_score: 0.62,
+          related_stocks: ["001309.SZ", "603986.SH", "301308.SZ", "688525.SH"],
+          related_companies: ["德明利", "兆易创新", "江波龙", "佰维存储"],
+          category: "HBM",
+          market_scope: "A-Share",
+          item_type: "股价涨跌",
+        },
+        {
+          id: 3,
+          timestamp: "2026-04-10 09:34",
+          region: "中国",
+          title: "存储芯片快速拉升，德明利逼近涨停",
+          summary:
+            "开盘后存储板块快速走高，德明利逼近涨停，江波龙、佰维存储、兆易创新同步上行。消息面上美股闪迪续创新高，情绪向A股扩散。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2339962",
+          impact_score: 0.58,
+          related_stocks: ["SNDK.US", "001309.SZ", "603986.SH", "301308.SZ"],
+          related_companies: ["闪迪", "德明利", "兆易创新", "江波龙"],
+          category: "存储",
+          market_scope: "A-Share",
+          item_type: "股价涨跌",
+        },
+        {
+          id: 4,
+          timestamp: "2026-04-10 09:31",
+          region: "中国",
+          title: "港股存储概念高开，澜起科技、兆易创新走强",
+          summary:
+            "港股存储相关标的集体高开，南方两倍做多海力士、南方两倍做多三星电子涨幅居前，澜起科技与兆易创新跟随上行。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2339960",
+          impact_score: 0.47,
+          related_stocks: ["000660.KS", "005930.KS", "688008.SH", "603986.SH"],
+          related_companies: ["海力士", "三星电子", "澜起科技", "兆易创新"],
+          category: "DRAM",
+          market_scope: "A-Share",
+          item_type: "股价涨跌",
+        },
+        {
+          id: 5,
+          timestamp: "2026-04-09 13:56",
+          region: "韩国",
+          title: "三星与海力士转向3-5年长期供货模式",
+          summary:
+            "报道称三星电子与SK海力士正减少一年期短约，转向3至5年长期供应协议。此举强化了上游供给纪律与中期价格稳定预期。",
+          source: "科创板日报",
+          source_url: "https://www.cls.cn/detail/2338929",
+          impact_score: 0.28,
+          related_stocks: ["000660.KS", "005930.KS"],
+          related_companies: ["海力士", "三星电子"],
+          category: "DRAM",
+          market_scope: "Global",
+          item_type: "公司动态",
+        },
+        {
+          id: 6,
+          timestamp: "2026-04-09 10:00",
+          region: "中国",
+          title: "存储板块低开回升，德明利盘中冲高",
+          summary:
+            "存储板块低开后回升，德明利等核心标的盘中拉升。券商观点继续强调AI需求抬升内存带宽与高端存储配置。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2338709",
+          impact_score: 0.22,
+          related_stocks: ["001309.SZ"],
+          related_companies: ["德明利"],
+          category: "HBM",
+          market_scope: "A-Share",
+          item_type: "研报解读",
+        },
+        {
+          id: 7,
+          timestamp: "2026-04-08 18:52",
+          region: "日本",
+          title: "铠侠考虑上市后首次派息并建立稳定分红",
+          summary:
+            "铠侠正研究上市后首次分红安排，同时维持相对克制的资本开支。市场将其解读为NAND供给更有纪律性。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2338195",
+          impact_score: 0.33,
+          related_stocks: ["285A.T"],
+          related_companies: ["铠侠"],
+          category: "NAND",
+          market_scope: "Global",
+          item_type: "公司动态",
+        },
+        {
+          id: 8,
+          timestamp: "2026-04-08 16:00",
+          region: "美国",
+          title: "美股存储盘前普涨，美光、闪迪领涨",
+          summary:
+            "盘前交易中，美光与闪迪涨超8%，西部数据与希捷科技涨超7%。海外存储链风险偏好同步抬升。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2337896",
+          impact_score: 0.57,
+          related_stocks: ["SNDK.US", "MU.US", "STX.US", "WDC.US"],
+          related_companies: ["闪迪", "美光", "希捷科技", "西部数据"],
+          category: "存储",
+          market_scope: "Global",
+          item_type: "股价涨跌",
+        },
+        {
+          id: 9,
+          timestamp: "2026-04-08 15:34",
+          region: "韩国",
+          title: "三星与海力士签氦气长约，缓解原料波动风险",
+          summary:
+            "三星电子与SK海力士分别与海外气体供应商签署长期合同。该动作有助于缓冲上游原料价格波动对产线的冲击。",
+          source: "财联社（深度）",
+          source_url: "https://www.cls.cn/detail/2337831",
+          impact_score: 0.26,
+          related_stocks: ["000660.KS", "005930.KS"],
+          related_companies: ["海力士", "三星电子"],
+          category: "DRAM",
+          market_scope: "Global",
+          item_type: "公司动态",
+        },
+        {
+          id: 10,
+          timestamp: "2026-04-08 13:18",
+          region: "中国",
+          title: "香农芯创20CM涨停，江波龙与佰维跟涨",
+          summary:
+            "存储板块盘中持续拉升，香农芯创20CM涨停，江波龙、德明利、佰维存储等同步走强。市场关注AI时代存力需求升级。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2337607",
+          impact_score: 0.64,
+          related_stocks: ["001309.SZ", "301308.SZ", "688525.SH", "300475.SZ"],
+          related_companies: ["德明利", "江波龙", "佰维存储", "香农芯创"],
+          category: "存储",
+          market_scope: "A-Share",
+          item_type: "股价涨跌",
+        },
+        {
+          id: 11,
+          timestamp: "2026-04-07 21:18",
+          region: "中国",
+          title: "香农芯创等AI链公司披露预增",
+          summary:
+            "AI产业链进入业绩披露窗口，香农芯创等公司预增信息带动存储链关注度升温，资金继续交易业绩兑现逻辑。",
+          source: "财联社（深度）",
+          source_url: "https://www.cls.cn/detail/2336990",
+          impact_score: 0.41,
+          related_stocks: ["300475.SZ"],
+          related_companies: ["香农芯创"],
+          category: "存储",
+          market_scope: "A-Share",
+          item_type: "公司动态",
+        },
+        {
+          id: 12,
+          timestamp: "2026-04-07 09:51",
+          region: "中国",
+          title: "早盘存储反弹，德明利与佰维同步走强",
+          summary:
+            "早盘存储概念反弹，佰维存储、德明利等核心标的上行。叠加三星DRAM合约价上调消息，板块情绪修复明显。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2336162",
+          impact_score: 0.35,
+          related_stocks: ["005930.KS", "001309.SZ", "688525.SH"],
+          related_companies: ["三星电子", "德明利", "佰维存储"],
+          category: "DRAM",
+          market_scope: "A-Share",
+          item_type: "股价涨跌",
+        },
+        {
+          id: 13,
+          timestamp: "2026-04-07 08:55",
+          region: "韩国",
+          title: "三星Q1营利大增，Q2 DRAM价格再上调",
+          summary:
+            "三星预计一季度利润大幅增长，并完成二季度DRAM提价谈判。该信息继续强化内存价格周期上行预期。",
+          source: "财联社（深度）",
+          source_url: "https://www.cls.cn/detail/2336052",
+          impact_score: 0.55,
+          related_stocks: ["005930.KS"],
+          related_companies: ["三星电子"],
+          category: "DRAM",
+          market_scope: "Global",
+          item_type: "公司动态",
+        },
+        {
+          id: 14,
+          timestamp: "2026-04-07 08:11",
+          region: "韩国",
+          title: "三星二季度DRAM合约价预计环比再涨30%",
+          summary:
+            "科创板日报快讯称，三星在一季度提价后，二季度DRAM合约价预计再涨约30%，并已完成主要客户签约。",
+          source: "科创板日报",
+          source_url: "https://www.cls.cn/detail/2336030",
+          impact_score: 0.44,
+          related_stocks: ["005930.KS"],
+          related_companies: ["三星电子"],
+          category: "DRAM",
+          market_scope: "Global",
+          item_type: "公司动态",
+        },
+        {
+          id: 15,
+          timestamp: "2026-04-06 21:30",
+          region: "美国",
+          title: "美股开盘后存储板块走强，希捷领涨",
+          summary:
+            "美股开盘后芯片存储板块普涨，希捷科技涨幅居前，美光与闪迪同步上行，反映海外资金对存储景气修复的交易仍在延续。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2335869",
+          impact_score: 0.36,
+          related_stocks: ["SNDK.US", "MU.US", "STX.US"],
+          related_companies: ["闪迪", "美光", "希捷科技"],
+          category: "存储",
+          market_scope: "Global",
+          item_type: "股价涨跌",
+        },
+        {
+          id: 16,
+          timestamp: "2026-04-06 16:06",
+          region: "美国",
+          title: "盘前存储普涨，闪迪、美光、西数、希捷齐升",
+          summary:
+            "盘前阶段闪迪、美光、西部数据、希捷科技均录得上涨，显示海外存储链风格延续。",
+          source: "财联社电报",
+          source_url: "https://www.cls.cn/detail/2335752",
+          impact_score: 0.31,
+          related_stocks: ["SNDK.US", "MU.US", "STX.US", "WDC.US"],
+          related_companies: ["闪迪", "美光", "希捷科技", "西部数据"],
+          category: "存储",
+          market_scope: "Global",
+          item_type: "股价涨跌",
+        },
+      ];
+
+      const TICKER_DATA = [
+        { name: "DDR5 16Gb", value: "$4.32", change: "+1.4%" },
+        { name: "NAND 512Gb", value: "$3.88", change: "-0.2%" },
+        { name: "HBM3e Index", value: "1,245.2", change: "+3.1%" },
+        { name: "SOX", value: "4,820.1", change: "+1.2%" },
+        { name: "存储景气指数", value: "108.6", change: "+0.7%" },
+      ];
+
+      const WATCHLIST_COMPANIES = [
+        { name: "闪迪", code: "SNDK.US", quoteKey: "usSNDK" },
+        { name: "美光", code: "MU.US", quoteKey: "usMU" },
+        { name: "希捷科技", code: "STX.US", quoteKey: "usSTX" },
+        { name: "西部数据", code: "WDC.US", quoteKey: "usWDC" },
+        { name: "德明利", code: "001309.SZ", quoteKey: "sz001309" },
+        { name: "兆易创新", code: "603986.SH", quoteKey: "sh603986" },
+        { name: "江波龙", code: "301308.SZ", quoteKey: "sz301308" },
+        { name: "佰维存储", code: "688525.SH", quoteKey: "sh688525" },
+        { name: "澜起科技", code: "688008.SH", quoteKey: "sh688008" },
+        { name: "香农芯创", code: "300475.SZ", quoteKey: "sz300475" },
+      ];
+
+      const DEFAULT_WIND_MARKET_DATA = WATCHLIST_COMPANIES.map((item) => ({
+        name: item.name,
+        code: item.code,
+        price: "--",
+        change: "跟踪中",
+      }));
+
+      const CALENDAR = [
+        { date: "04-15", event: "ASML Q1 财报电话会议", focus: "Global" },
+        { date: "04-18", event: "国内存储产业链闭门交流会", focus: "A-Share" },
+        { date: "05-22", event: "英伟达 FY2027 业绩发布", focus: "Global" },
+      ];
+
+      const FILTERS = [
+        "All",
+        "闪迪",
+        "美光",
+        "希捷科技",
+        "西部数据",
+        "海力士",
+        "三星电子",
+        "铠侠",
+        "德明利",
+        "兆易创新",
+        "江波龙",
+        "佰维存储",
+        "澜起科技",
+        "香农芯创",
+      ];
+
+      const CLS_SUBJECT_URL =
+        "https://api3.cls.cn/share/subject/2409?app=stib&os=ios&selected=&source=&sv=238";
+      const CLS_PROXY_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(
+        CLS_SUBJECT_URL
+      )}`;
+      const TENCENT_QUOTE_URL =
+        "https://qt.gtimg.cn/q=usSNDK,usMU,usSTX,usWDC,sz001309,sh603986,sz301308,sh688525,sh688008,sz300475";
+
+      const state = {
+        activeFilter: "All",
+        searchText: "",
+      };
+
+      const tickerTrack = document.getElementById("ticker-track");
+      const filterList = document.getElementById("filter-list");
+      const searchInput = document.getElementById("search-input");
+      const timeline = document.getElementById("timeline");
+      const watchList = document.getElementById("watch-list");
+      const calendarList = document.getElementById("calendar-list");
+      const hitCount = document.getElementById("hit-count");
+      const clock = document.getElementById("clock");
+      const newsUpdated = document.getElementById("news-updated");
+      const watchUpdated = document.getElementById("watch-updated");
+
+      let newsData = [...FALLBACK_NEWS_DATA];
+      let windMarketData = [...DEFAULT_WIND_MARKET_DATA];
+
+      function parseTimestamp(value) {
+        const match = String(value).match(
+          /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})(?::(\d{2}))?$/
+        );
+        if (!match) return new Date(0);
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const hour = Number(match[4]);
+        const minute = Number(match[5]);
+        const second = Number(match[6] || 0);
+        return new Date(year, month - 1, day, hour, minute, second);
+      }
+
+      function formatClock(date) {
+        return date.toLocaleTimeString("zh-CN", {
+          hour12: false,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+
+      function formatTimestamp(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hour = String(date.getHours()).padStart(2, "0");
+        const minute = String(date.getMinutes()).padStart(2, "0");
+        return `${year}-${month}-${day} ${hour}:${minute}`;
+      }
+
+      function truncateText(text, maxLen) {
+        const value = String(text || "").trim();
+        if (value.length <= maxLen) return value;
+        return `${value.slice(0, maxLen - 1)}…`;
+      }
+
+      function cleanFeedText(text) {
+        return String(text || "")
+          .replace(/\s+/g, "")
+          .replace(/^财联社\d+月\d+日电，?/, "")
+          .replace(/^《科创板日报》\d+日讯，?/, "")
+          .trim();
+      }
+
+      function normalizeSummary(rawSummary) {
+        const cleaned = cleanFeedText(rawSummary);
+        const parts = cleaned.split("。").filter(Boolean).slice(0, 2);
+        const merged = parts.join("。");
+        return truncateText(merged ? `${merged}。` : cleaned, 110);
+      }
+
+      function normalizeTitle(rawTitle, rawSummary) {
+        let title = String(rawTitle || "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const summary = normalizeSummary(rawSummary).replace(/。$/, "");
+        if (!title || /^\d{1,2}:\d{2}$/.test(title)) {
+          title = summary.split("，").slice(0, 2).join("，");
+        }
+        return truncateText(
+          title.replace(/^(财联社|金十快讯|同花顺7x24)[：:]\s*/, "") || "存储行业快讯",
+          42
+        );
+      }
+
+      function extractRelatedCompanies(text) {
+        const hits = [];
+        const targetText = String(text || "");
+        Object.entries(COMPANY_ALIAS_MAP).forEach(([company, aliases]) => {
+          if (aliases.some((alias) => targetText.includes(alias))) {
+            hits.push(company);
+          }
+        });
+        return hits.slice(0, 4);
+      }
+
+      function inferRegion(relatedCompanies) {
+        const cnSet = new Set(["德明利", "兆易创新", "江波龙", "佰维存储", "澜起科技", "香农芯创"]);
+        const usSet = new Set(["闪迪", "美光", "希捷科技", "西部数据"]);
+        if (relatedCompanies.some((item) => cnSet.has(item))) return "中国";
+        if (relatedCompanies.some((item) => item === "海力士" || item === "三星电子")) return "韩国";
+        if (relatedCompanies.includes("铠侠")) return "日本";
+        if (relatedCompanies.some((item) => usSet.has(item))) return "美国";
+        return "全球";
+      }
+
+      function inferCategory(text) {
+        if (/HBM/i.test(text)) return "HBM";
+        if (/DRAM|内存/i.test(text)) return "DRAM";
+        if (/NAND|闪存|SSD/i.test(text)) return "NAND";
+        return "存储";
+      }
+
+      function inferMarketScope(relatedCompanies) {
+        const cnSet = new Set(["德明利", "兆易创新", "江波龙", "佰维存储", "澜起科技", "香农芯创"]);
+        return relatedCompanies.some((item) => cnSet.has(item)) ? "A-Share" : "Global";
+      }
+
+      function inferItemType(text) {
+        if (/研报|机构|评级|券商|看好|目标价/i.test(text)) return "研报解读";
+        if (/公告|发布|披露|业绩|预告|签署|合同|纳入|派息/i.test(text)) return "公司动态";
+        return "股价涨跌";
+      }
+
+      function inferImpactScore(text) {
+        if (/涨停|涨超|大涨|走强|新高|预增|高增|跻身|纳入|拉升/i.test(text)) return 0.6;
+        if (/下跌|走弱|回落|下滑|跌幅|转弱/i.test(text)) return -0.35;
+        return 0.2;
+      }
+
+      function buildRelatedStocks(relatedCompanies) {
+        return relatedCompanies.map((item) => COMPANY_STOCK_MAP[item]).filter(Boolean).slice(0, 4);
+      }
+
+      function parseClsFeed(htmlText) {
+        const doc = new DOMParser().parseFromString(htmlText, "text/html");
+        const rows = [];
+        const items = doc.querySelectorAll("li.b-m-w-20.s-subject-list");
+        items.forEach((item, index) => {
+          const rawTitle = item.querySelector(".s-content-list-link span")?.textContent || "";
+          const rawSummary = item.querySelector(".s-subject-list-text pre")?.textContent || "";
+          const href = item.querySelector(".s-content-list-link")?.getAttribute("href") || "";
+          const articleId = href.match(/\/share\/article\/(\d+)/)?.[1];
+          const ctime = Number(item.querySelector(".content-list-ctime")?.getAttribute("data-ctime") || 0);
+          if (!articleId || !ctime) return;
+
+          const title = normalizeTitle(rawTitle, rawSummary);
+          const summary = normalizeSummary(rawSummary);
+          const blob = `${title} ${summary}`;
+          const relatedCompanies = extractRelatedCompanies(blob);
+          if (!relatedCompanies.length) return;
+
+          rows.push({
+            id: 2000 + index,
+            timestamp: formatTimestamp(new Date(ctime * 1000)),
+            region: inferRegion(relatedCompanies),
+            title,
+            summary,
+            source: "财联社（存储芯片专题）",
+            source_url: `https://www.cls.cn/detail/${articleId}`,
+            impact_score: inferImpactScore(blob),
+            related_stocks: buildRelatedStocks(relatedCompanies),
+            related_companies: relatedCompanies,
+            category: inferCategory(blob),
+            market_scope: inferMarketScope(relatedCompanies),
+            item_type: inferItemType(blob),
+          });
+        });
+        return rows.sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp));
+      }
+
+      function mergeNewsData(dynamicRows) {
+        const map = new Map();
+        [...dynamicRows, ...FALLBACK_NEWS_DATA].forEach((item) => {
+          const key = item.source_url || `${item.title}-${item.timestamp}`;
+          if (!map.has(key)) map.set(key, item);
+        });
+        return Array.from(map.values())
+          .sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp))
+          .slice(0, 40);
+      }
+
+      function renderTicker() {
+        const rows = TICKER_DATA.concat(TICKER_DATA)
+          .map((item) => {
+            const cls = item.change.startsWith("+") ? "ticker-up" : "ticker-down";
+            return `<span>${item.name}: <b class="${cls}">${item.value} (${item.change})</b></span>`;
+          })
+          .join("");
+        tickerTrack.innerHTML = rows;
+      }
+
+      function renderFilters() {
+        filterList.innerHTML = FILTERS.map((filter) => {
+          const activeClass = state.activeFilter === filter ? "active" : "";
+          const label = filter === "All" ? "全部" : filter;
+          return `<button class="filter-btn ${activeClass}" data-filter="${filter}">${label}</button>`;
+        }).join("");
+
+        filterList.querySelectorAll(".filter-btn").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.activeFilter = button.dataset.filter;
+            renderFilters();
+            renderNews();
+          });
+        });
+      }
+
+      function getFilteredNews() {
+        const query = state.searchText.trim().toLowerCase();
+
+        return newsData
+          .filter((item) => {
+            const matchesFilter =
+              state.activeFilter === "All" || (item.related_companies || []).includes(state.activeFilter);
+            if (!matchesFilter) return false;
+            if (!query) return true;
+
+            const text = [
+              item.title,
+              item.summary,
+              item.item_type || "",
+              item.source || "",
+              item.source_url || "",
+              item.region || "",
+              item.category || "",
+              item.market_scope || "",
+              (item.related_companies || []).join(" "),
+              (item.related_stocks || []).join(" "),
+            ]
+              .join(" ")
+              .toLowerCase();
+
+            return text.includes(query);
+          })
+          .sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp));
+      }
+
+      function renderNews() {
+        const rows = getFilteredNews();
+        hitCount.textContent = rows.length;
+
+        if (!rows.length) {
+          timeline.innerHTML = '<div class="empty">暂无匹配快讯，请调整筛选条件或搜索关键词。</div>';
+          return;
+        }
+
+        timeline.innerHTML = rows
+          .map((news) => {
+            const positive = Number(news.impact_score || 0) >= 0;
+            const dotClass = positive ? "dot-up" : "dot-down";
+            const [date, time] = String(news.timestamp).split(" ");
+
+            return `
+              <article class="news-item">
+                <div class="news-dot ${dotClass}"></div>
+                <div class="news-meta">
+                  <span class="meta-time">${(date || "").slice(5)} ${time || ""}</span>
+                </div>
+
+                <div class="news-card">
+                  <h2 class="news-title">${news.title}</h2>
+                  <p class="news-summary">${news.summary}</p>
+
+                  <div class="news-footer">
+                    <div class="stock-list">
+                      ${(news.related_companies || [])
+                        .slice(0, 4)
+                        .map((name) => `<span class="stock-pill">${name}</span>`)
+                        .join("")}
+                    </div>
+                  </div>
+
+                  ${
+                    news.source && news.source_url
+                      ? `<p class="news-source">来源：<span>${news.source}</span> · <a href="${news.source_url}" target="_blank" rel="noopener noreferrer">原文链接</a></p>`
+                      : ""
+                  }
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
+      function renderWatchlist() {
+        watchList.innerHTML = windMarketData
+          .map((stock) => {
+            let directionClass = "flat";
+            if ((stock.change || "").includes("+")) directionClass = "up";
+            else if ((stock.change || "").includes("-")) directionClass = "down";
+
+            return `
+              <div class="watch-item">
+                <div>
+                  <div class="watch-name">${stock.name}</div>
+                  <div class="watch-code">${stock.code}</div>
+                </div>
+                <div>
+                  <div class="watch-price">${stock.price || "--"}</div>
+                  <div class="watch-change ${directionClass}">${stock.change || "跟踪中"}</div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function formatQuotePrice(code, rawPrice) {
+        const value = Number(rawPrice);
+        if (!Number.isFinite(value)) return "--";
+        if (code.endsWith(".US")) return `$${value.toFixed(2)}`;
+        return value.toFixed(2);
+      }
+
+      function formatQuoteChange(rawPct) {
+        const value = Number(rawPct);
+        if (!Number.isFinite(value)) return "跟踪中";
+        const prefix = value > 0 ? "+" : "";
+        return `${prefix}${value.toFixed(2)}%`;
+      }
+
+      function parseQuoteTimestamp(raw) {
+        if (!raw) return "";
+        if (/^\d{14}$/.test(raw)) {
+          return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)} ${raw.slice(8, 10)}:${raw.slice(
+            10,
+            12
+          )}:${raw.slice(12, 14)}`;
+        }
+        return raw;
+      }
+
+      function parseTencentQuotePayload(text) {
+        const map = new Map();
+        String(text)
+          .split(";")
+          .map((line) => line.trim())
+          .forEach((line) => {
+            const match = line.match(/^v_([^=]+)="(.*)"$/);
+            if (!match) return;
+            const quoteKey = match[1];
+            const fields = match[2].split("~");
+            map.set(quoteKey, {
+              price: fields[3],
+              changeAbs: fields[31],
+              changePct: fields[32],
+              timeRaw: fields[30],
+            });
+          });
+        return map;
+      }
+
+      async function loadWindData() {
+        try {
+          const response = await fetch(`./wind_quotes.json?v=${Date.now()}`, { cache: "no-store" });
+          if (!response.ok) return;
+          const payload = await response.json();
+          const rows = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
+          const normalized = WATCHLIST_COMPANIES.map((meta) => {
+            const hit = rows.find((item) => item && item.code === meta.code);
+            return {
+              name: meta.name,
+              code: meta.code,
+              price: hit?.price || "--",
+              change: hit?.change || "跟踪中",
+            };
+          });
+          if (normalized.some((item) => item.price !== "--" || item.change !== "跟踪中")) {
+            windMarketData = normalized;
+            renderWatchlist();
+          }
+          if (payload?.updated_at) {
+            watchUpdated.textContent = payload.updated_at;
+          }
+        } catch (error) {
+          // Keep fallback data when local wind export is unavailable.
+        }
+      }
+
+      async function loadRealtimeQuoteData() {
+        try {
+          const response = await fetch(`${TENCENT_QUOTE_URL}&_t=${Date.now()}`, { cache: "no-store" });
+          if (!response.ok) return;
+          const payload = await response.text();
+          const quoteMap = parseTencentQuotePayload(payload);
+          if (!quoteMap.size) return;
+
+          let latestTime = "";
+          windMarketData = WATCHLIST_COMPANIES.map((meta) => {
+            const quote = quoteMap.get(meta.quoteKey);
+            if (!quote) {
+              const oldValue = windMarketData.find((item) => item.code === meta.code);
+              return oldValue || { name: meta.name, code: meta.code, price: "--", change: "跟踪中" };
+            }
+            const normalizedTime = parseQuoteTimestamp(quote.timeRaw);
+            if (normalizedTime && normalizedTime > latestTime) latestTime = normalizedTime;
+            return {
+              name: meta.name,
+              code: meta.code,
+              price: formatQuotePrice(meta.code, quote.price),
+              change: formatQuoteChange(quote.changePct),
+            };
+          });
+
+          renderWatchlist();
+          if (latestTime) {
+            watchUpdated.textContent = latestTime;
+          } else {
+            watchUpdated.textContent = formatClock(new Date());
+          }
+        } catch (error) {
+          // Realtime quote fetch can fail due network limits; keep current data.
+        }
+      }
+
+      async function loadLatestDomesticNews() {
+        const urls = [CLS_PROXY_URL, CLS_SUBJECT_URL];
+        for (const url of urls) {
+          try {
+            const response = await fetch(url, { cache: "no-store" });
+            if (!response.ok) continue;
+            const htmlText = await response.text();
+            const dynamicRows = parseClsFeed(htmlText);
+            if (dynamicRows.length >= 6) {
+              newsData = mergeNewsData(dynamicRows);
+              renderNews();
+              newsUpdated.textContent = formatTimestamp(new Date());
+              return;
+            }
+          } catch (error) {
+            // Try next source.
+          }
+        }
+      }
+
+      function renderCalendar() {
+        calendarList.innerHTML = CALENDAR.map((item) => {
+          return `
+            <li class="calendar-item">
+              <span class="calendar-date">${item.date}</span>
+              <div>
+                <div class="calendar-event">${item.event}</div>
+                <div class="calendar-focus">${item.focus}</div>
+              </div>
+            </li>
+          `;
+        }).join("");
+      }
+
+      function updateClock() {
+        clock.textContent = formatClock(new Date());
+      }
+
+      searchInput.addEventListener("input", (event) => {
+        state.searchText = event.target.value;
+        renderNews();
+      });
+
+      renderTicker();
+      renderFilters();
+      renderNews();
+      renderWatchlist();
+      renderCalendar();
+      updateClock();
+      newsUpdated.textContent = "本地兜底数据";
+      watchUpdated.textContent = "等待刷新";
+
+      loadWindData();
+      loadRealtimeQuoteData();
+      loadLatestDomesticNews();
+
+      setInterval(updateClock, 1000);
+      setInterval(loadRealtimeQuoteData, 60000);
+      setInterval(loadLatestDomesticNews, 300000);
+    </script>
+  </body>
+</html>
