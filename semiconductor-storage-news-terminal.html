@@ -1151,6 +1151,27 @@
       )}`;
       const TENCENT_QUOTE_URL =
         "https://qt.gtimg.cn/q=usSNDK,usMU,usSTX,usWDC,sz001309,sh603986,sz301308,sh688525,sh688008,sz300475";
+      const TENCENT_NEWS_API_URL =
+        "https://proxy.finance.qq.com/ifzqgtimg/appstock/news/info/search";
+      const TENCENT_NEWS_COMPANIES = [
+        { company: "闪迪", symbol: "usSNDK" },
+        { company: "美光", symbol: "usMU" },
+        { company: "希捷科技", symbol: "usSTX" },
+        { company: "西部数据", symbol: "usWDC" },
+        { company: "海力士", symbol: "ks000660" },
+        { company: "三星电子", symbol: "ks005930" },
+        { company: "铠侠", symbol: "jp285A" },
+        { company: "德明利", symbol: "sz001309" },
+        { company: "兆易创新", symbol: "sh603986" },
+        { company: "江波龙", symbol: "sz301308" },
+        { company: "佰维存储", symbol: "sh688525" },
+        { company: "澜起科技", symbol: "sh688008" },
+        { company: "香农芯创", symbol: "sz300475" },
+      ];
+      const BLOCKED_TENCENT_SOURCES = new Set(["市场透视", "智选洞察"]);
+      const TENCENT_SYMBOL_TO_COMPANY = new Map(
+        TENCENT_NEWS_COMPANIES.map((item) => [String(item.symbol).toLowerCase(), item.company])
+      );
 
       const state = {
         activeFilter: "All",
@@ -1324,15 +1345,56 @@
         return rows.sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp));
       }
 
+      function normalizeNewsTitleKey(title) {
+        return String(title || "")
+          .toLowerCase()
+          .replace(/[\s\-—:：,，。！!？?、“”"'"()\[\]【】]/g, "")
+          .replace(/^(快讯|研报|公告)/, "");
+      }
+
+      function mergeTagLists(a, b, limit = 4) {
+        return Array.from(new Set([...(a || []), ...(b || [])])).slice(0, limit);
+      }
+
       function mergeNewsData(dynamicRows) {
-        const map = new Map();
-        [...dynamicRows, ...FALLBACK_NEWS_DATA].forEach((item) => {
-          const key = item.source_url || `${item.title}-${item.timestamp}`;
-          if (!map.has(key)) map.set(key, item);
-        });
-        return Array.from(map.values())
+        const byLink = new Map();
+        [...dynamicRows, ...FALLBACK_NEWS_DATA]
+          .filter((item) => item && item.title && item.timestamp)
+          .forEach((item) => {
+            const key = item.source_url || `${item.timestamp}-${normalizeNewsTitleKey(item.title)}`;
+            if (!byLink.has(key)) {
+              byLink.set(key, { ...item });
+              return;
+            }
+            const old = byLink.get(key);
+            byLink.set(key, {
+              ...old,
+              related_companies: mergeTagLists(old.related_companies, item.related_companies),
+              related_stocks: mergeTagLists(old.related_stocks, item.related_stocks),
+            });
+          });
+
+        const byTitle = new Map();
+        Array.from(byLink.values())
           .sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp))
-          .slice(0, 40);
+          .forEach((item) => {
+            const titleKey = normalizeNewsTitleKey(item.title);
+            if (!titleKey) return;
+            if (!byTitle.has(titleKey)) {
+              byTitle.set(titleKey, item);
+              return;
+            }
+            const old = byTitle.get(titleKey);
+            byTitle.set(titleKey, {
+              ...old,
+              related_companies: mergeTagLists(old.related_companies, item.related_companies),
+              related_stocks: mergeTagLists(old.related_stocks, item.related_stocks),
+            });
+          });
+
+        return Array.from(byTitle.values())
+          .sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp))
+          .slice(0, 60);
       }
 
       function renderTicker() {
@@ -1569,7 +1631,120 @@
         }
       }
 
+      function parseTencentNewsJsonp(text) {
+        const start = String(text || "").indexOf("{");
+        if (start < 0) return null;
+        const raw = String(text || "")
+          .slice(start)
+          .trim()
+          .replace(/;$/, "");
+        try {
+          return JSON.parse(raw);
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function isBlockedTencentSource(source) {
+        const value = String(source || "").trim();
+        if (!value) return false;
+        return Array.from(BLOCKED_TENCENT_SOURCES).some((blocked) => value.includes(blocked));
+      }
+
+      function extractTencentRelatedCompanies(item, fallbackCompany, textBlob) {
+        const set = new Set();
+        const rawSymbols = [];
+        if (item?.symbol) rawSymbols.push(item.symbol);
+        if (Array.isArray(item?.symbols)) rawSymbols.push(...item.symbols);
+        if (typeof item?.symbols === "string") rawSymbols.push(...item.symbols.split(","));
+        rawSymbols.forEach((symbol) => {
+          const key = String(symbol || "").trim().toLowerCase();
+          if (TENCENT_SYMBOL_TO_COMPANY.has(key)) {
+            set.add(TENCENT_SYMBOL_TO_COMPANY.get(key));
+          }
+        });
+        if (fallbackCompany) set.add(fallbackCompany);
+        extractRelatedCompanies(textBlob).forEach((company) => set.add(company));
+        return Array.from(set).slice(0, 4);
+      }
+
+      function normalizeTencentNewsItem(item, fallbackCompany, index) {
+        const source = String(item?.src || "腾讯自选股").trim();
+        if (isBlockedTencentSource(source)) return null;
+
+        const title = truncateText(String(item?.title || "").trim(), 46);
+        if (!title) return null;
+
+        const summary = normalizeSummary(String(item?.summary || "").trim() || title);
+        const blob = `${title} ${summary}`;
+        const relatedCompanies = extractTencentRelatedCompanies(item, fallbackCompany, blob);
+        if (!relatedCompanies.length) return null;
+
+        let timestamp = String(item?.time || "").trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) {
+          timestamp = `${timestamp} 00:00`;
+        }
+        if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(timestamp)) {
+          timestamp = formatTimestamp(new Date());
+        }
+
+        const sourceUrl = String(item?.url || "")
+          .replace(/^http:\/\//, "https://")
+          .trim();
+
+        return {
+          id: item?.id || `tx-${fallbackCompany}-${index}`,
+          timestamp,
+          region: inferRegion(relatedCompanies),
+          title,
+          summary,
+          source: source || "腾讯自选股",
+          source_url: sourceUrl,
+          impact_score: inferImpactScore(blob),
+          related_stocks: buildRelatedStocks(relatedCompanies),
+          related_companies: relatedCompanies,
+          category: inferCategory(blob),
+          market_scope: inferMarketScope(relatedCompanies),
+          item_type: inferItemType(blob),
+        };
+      }
+
+      async function fetchTencentNewsByCompany(companyItem) {
+        try {
+          const url =
+            `${TENCENT_NEWS_API_URL}?page=1&symbol=${encodeURIComponent(companyItem.symbol)}` +
+            `&n=20&_var=finance_notice&type=2&_t=${Date.now()}`;
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) return [];
+          const text = await response.text();
+          const payload = parseTencentNewsJsonp(text);
+          if (!payload || payload.code !== 0) return [];
+          const rows = payload?.data?.data || [];
+          return rows
+            .map((item, index) => normalizeTencentNewsItem(item, companyItem.company, index))
+            .filter(Boolean);
+        } catch (error) {
+          return [];
+        }
+      }
+
+      async function loadTencentStockNewsRows() {
+        const tasks = TENCENT_NEWS_COMPANIES.map((item) => fetchTencentNewsByCompany(item));
+        const results = await Promise.allSettled(tasks);
+        const rows = [];
+        results.forEach((result) => {
+          if (result.status === "fulfilled" && Array.isArray(result.value)) {
+            rows.push(...result.value);
+          }
+        });
+        return rows
+          .sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp))
+          .slice(0, 160);
+      }
+
       async function loadLatestDomesticNews() {
+        const tencentRowsPromise = loadTencentStockNewsRows();
+        let clsRows = [];
         const urls = [CLS_PROXY_URL, CLS_SUBJECT_URL];
         for (const url of urls) {
           try {
@@ -1578,15 +1753,25 @@
             const htmlText = await response.text();
             const dynamicRows = parseClsFeed(htmlText);
             if (dynamicRows.length >= 6) {
-              newsData = mergeNewsData(dynamicRows);
-              renderNews();
-              newsUpdated.textContent = formatTimestamp(new Date());
-              return;
+              clsRows = dynamicRows;
+              break;
             }
           } catch (error) {
             // Try next source.
           }
         }
+
+        const tencentRows = await tencentRowsPromise;
+        const mergedRows = mergeNewsData([...tencentRows, ...clsRows]);
+        if (!mergedRows.length) return;
+
+        newsData = mergedRows;
+        renderNews();
+
+        const sourceFlags = [];
+        if (tencentRows.length) sourceFlags.push(`腾讯${tencentRows.length}`);
+        if (clsRows.length) sourceFlags.push(`财联社${clsRows.length}`);
+        newsUpdated.textContent = `${formatTimestamp(new Date())}（${sourceFlags.join(" / ") || "已刷新"}）`;
       }
 
       function renderCalendar() {
