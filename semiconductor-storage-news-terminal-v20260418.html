@@ -1155,6 +1155,8 @@
       const TENCENT_NEWS_API_URL =
         "https://proxy.finance.qq.com/ifzqgtimg/appstock/news/info/search";
       const TENCENT_NEWS_CACHE_MAX_AGE_MS = 1000 * 60 * 10;
+      const DYNAMIC_NEWS_CACHE_KEY = "seminews_dynamic_rows_v5";
+      const DYNAMIC_NEWS_CACHE_MAX_AGE_MS = 1000 * 60 * 180;
       const TENCENT_NEWS_COMPANIES = [
         { company: "闪迪", symbol: "usSNDK" },
         { company: "美光", symbol: "usMU" },
@@ -1191,7 +1193,7 @@
       const newsUpdated = document.getElementById("news-updated");
       const watchUpdated = document.getElementById("watch-updated");
 
-      let newsData = [];
+      let newsData = [...FALLBACK_NEWS_DATA];
       let windMarketData = [...DEFAULT_WIND_MARKET_DATA];
       let tencentRowsCache = [];
       let tencentRowsCacheSavedAt = 0;
@@ -1738,6 +1740,40 @@
         return Array.from(BLOCKED_TENCENT_SOURCES).some((blocked) => value.includes(blocked));
       }
 
+      function loadDynamicRowsFromCache() {
+        try {
+          const raw = localStorage.getItem(DYNAMIC_NEWS_CACHE_KEY);
+          if (!raw) return { rows: [], savedAt: 0 };
+          const payload = JSON.parse(raw);
+          if (!payload || !Array.isArray(payload.rows)) return { rows: [], savedAt: 0 };
+          const savedAt = Number(payload.saved_at || 0);
+          if (!savedAt || Date.now() - savedAt > DYNAMIC_NEWS_CACHE_MAX_AGE_MS) {
+            return { rows: [], savedAt: 0 };
+          }
+          const rows = payload.rows
+            .filter((item) => item && item.title && item.timestamp)
+            .filter((item) => !isBlockedTencentSource(item.source))
+            .slice(0, 180);
+          return { rows, savedAt };
+        } catch (error) {
+          return { rows: [], savedAt: 0 };
+        }
+      }
+
+      function saveDynamicRowsToCache(rows) {
+        try {
+          localStorage.setItem(
+            DYNAMIC_NEWS_CACHE_KEY,
+            JSON.stringify({
+              saved_at: Date.now(),
+              rows: (rows || []).slice(0, 180),
+            })
+          );
+        } catch (error) {
+          // Ignore storage failures in private mode.
+        }
+      }
+
       function extractTencentRelatedCompanies(item, fallbackCompany, textBlob) {
         const set = new Set();
         const rawSymbols = [];
@@ -1858,14 +1894,29 @@
 
         const mergedRows = mergeNewsData([...tencentRows, ...clsRows]);
         if (!mergedRows.length) {
-          newsData = [];
+          const cached = loadDynamicRowsFromCache();
+          if (cached.rows.length) {
+            newsData = cached.rows;
+            renderNews();
+            const ageMinutes = Math.max(1, Math.round((Date.now() - cached.savedAt) / (1000 * 60)));
+            newsUpdated.textContent = `${formatTimestamp(
+              new Date()
+            )}（实时源暂不可用，展示最近缓存：${ageMinutes}分钟前）`;
+            return;
+          }
+
+          newsData = [...FALLBACK_NEWS_DATA]
+            .filter((item) => item && item.title && item.timestamp)
+            .sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp))
+            .slice(0, 60);
           renderNews();
-          newsUpdated.textContent = `${formatTimestamp(new Date())}（未获取到实时数据，请稍后自动重试）`;
+          newsUpdated.textContent = `${formatTimestamp(new Date())}（实时源暂不可用，展示离线兜底）`;
           return;
         }
 
         newsData = mergedRows;
         renderNews();
+        saveDynamicRowsToCache(mergedRows);
 
         const sourceFlags = [];
         if (tencentRows.length) {
@@ -1905,13 +1956,26 @@
         renderNews();
       });
 
+      const startupCachedNews = loadDynamicRowsFromCache();
+      if (startupCachedNews.rows.length) {
+        newsData = startupCachedNews.rows;
+      }
+
       renderTicker();
       renderFilters();
       renderNews();
       renderWatchlist();
       renderCalendar();
       updateClock();
-      newsUpdated.textContent = "等待首次拉取";
+      if (startupCachedNews.rows.length) {
+        const startupAgeMinutes = Math.max(
+          1,
+          Math.round((Date.now() - startupCachedNews.savedAt) / (1000 * 60))
+        );
+        newsUpdated.textContent = `启动缓存 ${startupAgeMinutes} 分钟前，正在刷新`;
+      } else {
+        newsUpdated.textContent = "等待首次拉取";
+      }
       watchUpdated.textContent = "等待刷新";
 
       loadWindData();
