@@ -1191,7 +1191,7 @@
       const newsUpdated = document.getElementById("news-updated");
       const watchUpdated = document.getElementById("watch-updated");
 
-      let newsData = [...FALLBACK_NEWS_DATA];
+      let newsData = [];
       let windMarketData = [...DEFAULT_WIND_MARKET_DATA];
       let tencentRowsCache = [];
       let tencentRowsCacheSavedAt = 0;
@@ -1362,8 +1362,7 @@
 
       function mergeNewsData(dynamicRows) {
         const byLink = new Map();
-        const sourceRows =
-          Array.isArray(dynamicRows) && dynamicRows.length ? dynamicRows : FALLBACK_NEWS_DATA;
+        const sourceRows = Array.isArray(dynamicRows) ? dynamicRows : [];
         [...sourceRows]
           .filter((item) => item && item.title && item.timestamp)
           .filter((item) => !isBlockedTencentSource(item.source))
@@ -1858,7 +1857,12 @@
         const usingCachedTencentRows = !hasFreshTencentRows && tencentRows.length > 0;
 
         const mergedRows = mergeNewsData([...tencentRows, ...clsRows]);
-        if (!mergedRows.length) return;
+        if (!mergedRows.length) {
+          newsData = [];
+          renderNews();
+          newsUpdated.textContent = `${formatTimestamp(new Date())}（未获取到实时数据，请稍后自动重试）`;
+          return;
+        }
 
         newsData = mergedRows;
         renderNews();
@@ -1907,7 +1911,7 @@
       renderWatchlist();
       renderCalendar();
       updateClock();
-      newsUpdated.textContent = "本地兜底数据";
+      newsUpdated.textContent = "等待首次拉取";
       watchUpdated.textContent = "等待刷新";
 
       loadWindData();
