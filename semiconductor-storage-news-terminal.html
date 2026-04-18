@@ -1146,6 +1146,7 @@
 
       const CLS_SUBJECT_URL =
         "https://api3.cls.cn/share/subject/2409?app=stib&os=ios&selected=&source=&sv=238";
+      const CLS_CODETABS_PROXY_URL = "https://api.codetabs.com/v1/proxy/?quest=";
       const CLS_PROXY_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(
         CLS_SUBJECT_URL
       )}`;
@@ -1154,7 +1155,7 @@
       const TENCENT_NEWS_API_URL =
         "https://proxy.finance.qq.com/ifzqgtimg/appstock/news/info/search";
       const TENCENT_NEWS_CACHE_KEY = "seminews_tencent_rows_v2";
-      const TENCENT_NEWS_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6;
+      const TENCENT_NEWS_CACHE_MAX_AGE_MS = 1000 * 60 * 45;
       const TENCENT_NEWS_COMPANIES = [
         { company: "闪迪", symbol: "usSNDK" },
         { company: "美光", symbol: "usMU" },
@@ -1573,6 +1574,24 @@
         return map;
       }
 
+      function buildCodetabsProxyUrl(url) {
+        return `${CLS_CODETABS_PROXY_URL}${encodeURIComponent(url)}`;
+      }
+
+      async function fetchTextWithTimeout(url, timeoutMs = 8000) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+          if (!response.ok) return "";
+          return await response.text();
+        } catch (error) {
+          return "";
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
       async function loadWindData() {
         try {
           const response = await fetch(`./wind_quotes.json?v=${Date.now()}`, { cache: "no-store" });
@@ -1784,19 +1803,14 @@
       async function loadLatestDomesticNews() {
         const tencentRowsPromise = loadTencentStockNewsRows();
         let clsRows = [];
-        const urls = [CLS_PROXY_URL, CLS_SUBJECT_URL];
+        const urls = [buildCodetabsProxyUrl(CLS_SUBJECT_URL), CLS_PROXY_URL, CLS_SUBJECT_URL];
         for (const url of urls) {
-          try {
-            const response = await fetch(url, { cache: "no-store" });
-            if (!response.ok) continue;
-            const htmlText = await response.text();
-            const dynamicRows = parseClsFeed(htmlText);
-            if (dynamicRows.length >= 6) {
-              clsRows = dynamicRows;
-              break;
-            }
-          } catch (error) {
-            // Try next source.
+          const htmlText = await fetchTextWithTimeout(url, 9000);
+          if (!htmlText) continue;
+          const dynamicRows = parseClsFeed(htmlText);
+          if (dynamicRows.length) {
+            clsRows = dynamicRows;
+            break;
           }
         }
 
@@ -1805,15 +1819,18 @@
         if (hasFreshTencentRows) {
           tencentRowsCache = tencentRows;
           saveTencentRowsToCache(tencentRows);
-        } else if (tencentRowsCache.length) {
-          tencentRows = tencentRowsCache;
-        } else {
-          const cachedRows = loadTencentRowsFromCache();
-          if (cachedRows.length) {
-            tencentRowsCache = cachedRows;
-            tencentRows = cachedRows;
+        } else if (!clsRows.length) {
+          if (tencentRowsCache.length) {
+            tencentRows = tencentRowsCache;
+          } else {
+            const cachedRows = loadTencentRowsFromCache();
+            if (cachedRows.length) {
+              tencentRowsCache = cachedRows;
+              tencentRows = cachedRows;
+            }
           }
         }
+        const usingCachedTencentRows = !hasFreshTencentRows && tencentRows.length > 0;
 
         const mergedRows = mergeNewsData([...tencentRows, ...clsRows]);
         if (!mergedRows.length) return;
@@ -1824,7 +1841,7 @@
         const sourceFlags = [];
         if (tencentRows.length) {
           sourceFlags.push(
-            hasFreshTencentRows ? `腾讯来源 ${tencentRows.length}` : `腾讯来源 缓存${tencentRows.length}`
+            usingCachedTencentRows ? `腾讯来源 缓存${tencentRows.length}` : `腾讯来源 ${tencentRows.length}`
           );
         }
         if (clsRows.length) sourceFlags.push(`财联社${clsRows.length}`);
@@ -1856,10 +1873,6 @@
 
       renderTicker();
       renderFilters();
-      tencentRowsCache = loadTencentRowsFromCache();
-      if (tencentRowsCache.length) {
-        newsData = mergeNewsData([...tencentRowsCache]);
-      }
       renderNews();
       renderWatchlist();
       renderCalendar();
@@ -1870,10 +1883,18 @@
       loadWindData();
       loadRealtimeQuoteData();
       loadLatestDomesticNews();
+      setTimeout(loadLatestDomesticNews, 6000);
 
       setInterval(updateClock, 1000);
       setInterval(loadRealtimeQuoteData, 60000);
-      setInterval(loadLatestDomesticNews, 300000);
+      setInterval(loadLatestDomesticNews, 120000);
+
+      window.addEventListener("focus", () => {
+        loadLatestDomesticNews();
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) loadLatestDomesticNews();
+      });
     </script>
   </body>
 </html>
